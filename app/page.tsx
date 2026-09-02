@@ -1874,6 +1874,7 @@ function AdminView({
     setOperationsSequence((value) => value + 1);
   };
   const resetTournamentSession = async () => {
+    if (resetStatus === "Resetting tournament session…") return;
     setResetStatus("Resetting tournament session…");
     try {
       const response = await fetch("/api/admin/reset", {
@@ -2245,11 +2246,17 @@ function AdminView({
                 This permanently removes all players, brackets, scores, match
                 times, and court assignments. This action cannot be undone.
               </p>
+              {resetStatus && (
+                <p className="reset-dialog-status" role="status" aria-live="polite">
+                  {resetStatus}
+                </p>
+              )}
               <div>
                 <button
                   className="secondary"
                   type="button"
                   onClick={() => setResetConfirmationOpen(false)}
+                  disabled={resetStatus === "Resetting tournament session…"}
                 >
                   Cancel
                 </button>
@@ -2257,9 +2264,11 @@ function AdminView({
                   className="danger-button"
                   type="button"
                   onClick={resetTournamentSession}
-                  disabled={resetStatus.startsWith("Resetting")}
+                  disabled={resetStatus === "Resetting tournament session…"}
                 >
-                  Yes, reset session
+                  {resetStatus === "Resetting tournament session…"
+                    ? "Resetting…"
+                    : "Yes, reset session"}
                 </button>
               </div>
             </section>
