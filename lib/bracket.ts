@@ -1,11 +1,126 @@
 export type MatchScore = [number, number];
+export type TournamentFormat = "single_elimination" | "round_robin";
+export type AdvancementRule = {
+  mode: "top_per_group" | "best_overall";
+  count: number;
+  allowByes: boolean;
+};
 export type BracketData = {
   teams: string[];
   scores: Record<string, MatchScore>;
+  /** Missing on legacy records and intentionally defaults to elimination. */
+  format?: TournamentFormat;
+  groupSize?: number;
+  advancement?: AdvancementRule;
   positionsLocked?: boolean;
   roundOrders?: Record<string, string[]>;
   roundSlotOrders?: Record<string, number[]>;
 };
+export type RoundRobinMatch = {
+  id: string;
+  groupIndex: number;
+  position: number;
+  pair: [string, string];
+};
+export type Standing = {
+  team: string;
+  played: number;
+  wins: number;
+  losses: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  difference: number;
+  rank: number;
+};
+
+export function tournamentFormat(data: BracketData): TournamentFormat {
+  return data.format === "round_robin" ? "round_robin" : "single_elimination";
+}
+
+/** Seeded snake distribution keeps partial groups as even as possible. */
+export function roundRobinGroups(data: BracketData): string[][] {
+  const teams = data.teams.filter(isRealTeam);
+  if (!teams.length) return [];
+  const size = Math.max(2, Math.min(32, data.groupSize ?? 4));
+  const groupCount = Math.ceil(teams.length / size);
+  const groups = Array.from({ length: groupCount }, () => [] as string[]);
+  teams.forEach((team, index) => {
+    const cycle = Math.floor(index / groupCount);
+    const offset = index % groupCount;
+    groups[cycle % 2 === 0 ? offset : groupCount - 1 - offset].push(team);
+  });
+  return groups;
+}
+
+/** Circle scheduling guarantees one match for every unordered pair. */
+export function roundRobinMatches(data: BracketData): RoundRobinMatch[] {
+  return roundRobinGroups(data).flatMap((group, groupIndex) => {
+    const rotating: (string | null)[] = [...group];
+    if (rotating.length % 2) rotating.push(null);
+    const matches: RoundRobinMatch[] = [];
+    for (let round = 0; round < Math.max(0, rotating.length - 1); round += 1) {
+      for (let index = 0; index < rotating.length / 2; index += 1) {
+        const one = rotating[index];
+        const two = rotating[rotating.length - 1 - index];
+        if (one && two)
+          matches.push({
+            id: `rr-g${groupIndex}-m${matches.length}`,
+            groupIndex,
+            position: matches.length + 1,
+            pair: [one, two],
+          });
+      }
+      rotating.splice(1, 0, rotating.pop()!);
+    }
+    return matches;
+  });
+}
+
+export function roundRobinStandings(
+  data: BracketData,
+  groupIndex: number,
+): Standing[] {
+  const group = roundRobinGroups(data)[groupIndex] ?? [];
+  const matches = roundRobinMatches(data).filter(
+    (match) => match.groupIndex === groupIndex,
+  );
+  const table = new Map(
+    group.map((team) => [team, { team, played: 0, wins: 0, losses: 0, pointsFor: 0, pointsAgainst: 0 }]),
+  );
+  const completed = matches.filter((match) => {
+    const score = scoreFor(data, match.id);
+    return score[0] === 31 || score[1] === 31;
+  });
+  completed.forEach((match) => {
+    const [one, two] = match.pair;
+    const score = scoreFor(data, match.id);
+    const first = table.get(one)!;
+    const second = table.get(two)!;
+    first.played += 1; second.played += 1;
+    first.pointsFor += score[0]; first.pointsAgainst += score[1];
+    second.pointsFor += score[1]; second.pointsAgainst += score[0];
+    if (score[0] === 31) { first.wins += 1; second.losses += 1; }
+    else { second.wins += 1; first.losses += 1; }
+  });
+  const result = [...table.values()].map((row) => ({
+    ...row,
+    difference: row.pointsFor - row.pointsAgainst,
+  }));
+  const directWinner = (one: string, two: string) => {
+    const match = completed.find((item) => item.pair.includes(one) && item.pair.includes(two));
+    if (!match) return null;
+    const score = scoreFor(data, match.id);
+    return score[0] === 31 ? match.pair[0] : match.pair[1];
+  };
+  return result.sort((one, two) => {
+    if (two.wins !== one.wins) return two.wins - one.wins;
+    const headToHead = directWinner(one.team, two.team);
+    if (headToHead === one.team) return -1;
+    if (headToHead === two.team) return 1;
+    if (two.difference !== one.difference) return two.difference - one.difference;
+    return one.team.localeCompare(two.team);
+  }).map((row, index) => ({ ...row, rank: index + 1 }));
+}
 export type BracketRound = { label: string; short: string; matches: { id: string; pair: [string, string] }[] };
 
 export function isOpenTeam(team: string) {

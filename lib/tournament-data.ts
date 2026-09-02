@@ -3,8 +3,11 @@ import {
   isRealTeam,
   isWaitingTeam,
   matchWinner,
+  roundRobinMatches,
+  roundRobinStandings,
   scoreFor,
   splitTeam,
+  tournamentFormat,
   type BracketData,
 } from "./bracket.ts";
 
@@ -65,6 +68,22 @@ export function resolvePlayerProgress(
         .join("|") === wanted,
   );
   if (!team) return player;
+
+  if (tournamentFormat(bracket) === "round_robin") {
+    const matches = roundRobinMatches(bracket).filter((match) => match.pair.includes(team));
+    const next = matches.find((match) => {
+      const score = scoreFor(bracket, match.id);
+      return score[0] !== 31 && score[1] !== 31;
+    });
+    if (next) {
+      const opponent = next.pair[0] === team ? next.pair[1] : next.pair[0];
+      const scheduled = schedule.find((item) => item.id === `${player.division}|${player.level}|${next.id}`);
+      return { ...player, opponent, court: scheduled?.court || "To be assigned", time: scheduled?.time || "Check schedule", round: `BRACKET ${String.fromCharCode(65 + next.groupIndex)}`, matchStatus: "upcoming" };
+    }
+    const groupIndex = roundRobinMatches(bracket).find((match) => match.pair.includes(team))?.groupIndex ?? 0;
+    const standing = roundRobinStandings(bracket, groupIndex).find((row) => row.team === team);
+    return { ...player, opponent: `Ranked #${standing?.rank ?? "–"}`, court: standing?.rank === 1 ? "Group leader" : "Round robin complete", time: `${standing?.wins ?? 0} wins · ${standing?.losses ?? 0} losses`, round: `BRACKET ${String.fromCharCode(65 + groupIndex)}`, matchStatus: standing?.rank === 1 ? "champion" : "eliminated" };
+  }
 
   for (const round of buildRounds(bracket)) {
     const match = round.matches.find((item) => item.pair.includes(team));
@@ -168,7 +187,9 @@ export function syncScheduleWithBracket(
   level: TournamentLevel,
   bracketData: BracketData,
 ): ScheduleRecord[] {
-  const rounds = buildRounds(bracketData);
+  const rounds = tournamentFormat(bracketData) === "round_robin"
+    ? [{ matches: roundRobinMatches(bracketData) }]
+    : buildRounds(bracketData);
   let changed = false;
   const activeIds = new Set<string>();
   let next = [...schedule];
@@ -179,7 +200,9 @@ export function syncScheduleWithBracket(
       const id = `${division}|${level}|${match.id}`;
       const currentScore = scoreFor(bracketData, match.id);
       const score = `${currentScore[0]}–${currentScore[1]}`;
-      const winner = matchWinner(bracketData, match.id, match.pair);
+      const winner = tournamentFormat(bracketData) === "round_robin"
+        ? currentScore[0] === 31 ? teamOne : currentScore[1] === 31 ? teamTwo : null
+        : matchWinner(bracketData, match.id, match.pair);
       activeIds.add(id);
       const existingIndex = next.findIndex((row) => row.id === id);
       if (existingIndex === -1) {
@@ -251,12 +274,17 @@ export function pendingScheduleMatches(
     if (!row.id.startsWith(prefix)) return true;
 
     const matchId = row.id.slice(prefix.length);
-    const match = buildRounds(bracket)
-      .flatMap((round) => round.matches)
-      .find((candidate) => candidate.id === matchId);
+    const match = (tournamentFormat(bracket) === "round_robin"
+      ? roundRobinMatches(bracket)
+      : buildRounds(bracket).flatMap((round) => round.matches)
+    ).find((candidate) => candidate.id === matchId);
 
     // A generated row whose bracket match no longer exists is stale.
     if (!match) return false;
+    if (tournamentFormat(bracket) === "round_robin") {
+      const score = scoreFor(bracket, match.id);
+      return score[0] !== 31 && score[1] !== 31;
+    }
     return !matchWinner(bracket, match.id, match.pair);
   });
 }

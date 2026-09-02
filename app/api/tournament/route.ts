@@ -14,6 +14,13 @@ function validBracket(
   teams: string[];
   scores: Record<string, [number, number]>;
   positionsLocked?: boolean;
+  format?: "single_elimination" | "round_robin";
+  groupSize?: number;
+  advancement?: {
+    mode: "top_per_group" | "best_overall";
+    count: number;
+    allowByes: boolean;
+  };
   roundOrders?: Record<string, string[]>;
   roundSlotOrders?: Record<string, number[]>;
 } {
@@ -25,6 +32,34 @@ function validBracket(
     bracket.teams.some((team) => typeof team !== "string" || team.length > 80)
   )
     return false;
+  if (
+    "format" in bracket &&
+    bracket.format !== "single_elimination" &&
+    bracket.format !== "round_robin"
+  )
+    return false;
+  if (
+    "groupSize" in bracket &&
+    (!Number.isInteger(bracket.groupSize) ||
+      Number(bracket.groupSize) < 2 ||
+      Number(bracket.groupSize) > 32)
+  )
+    return false;
+  if ("advancement" in bracket) {
+    const advancement = bracket.advancement;
+    if (
+      !advancement ||
+      typeof advancement !== "object" ||
+      !["top_per_group", "best_overall"].includes(
+        String((advancement as { mode?: unknown }).mode),
+      ) ||
+      !Number.isInteger((advancement as { count?: unknown }).count) ||
+      Number((advancement as { count: number }).count) < 0 ||
+      Number((advancement as { count: number }).count) > 256 ||
+      typeof (advancement as { allowByes?: unknown }).allowByes !== "boolean"
+    )
+      return false;
+  }
   if (!bracket.scores || typeof bracket.scores !== "object") return false;
   if (
     "positionsLocked" in bracket &&
@@ -73,10 +108,10 @@ function validBracket(
   }
   const scores = Object.entries(bracket.scores as Record<string, unknown>);
   return (
-    scores.length <= 511 &&
+    scores.length <= 32_768 &&
     scores.every(
       ([id, score]) =>
-        /^r\d+m\d+$/.test(id) &&
+        /^(?:r\d+m\d+|rr-g\d+-m\d+)$/.test(id) &&
         Array.isArray(score) &&
         score.length === 2 &&
         score.every(

@@ -20,8 +20,12 @@ import {
   matchWinner,
   moveRoundParticipant,
   moveRoundMatch,
+  roundRobinGroups,
+  roundRobinMatches,
+  roundRobinStandings,
   scoreFor,
   splitTeam,
+  tournamentFormat,
   type BracketData,
   type MatchScore,
 } from "@/lib/bracket";
@@ -327,6 +331,63 @@ function DivisionTabs({
   );
 }
 
+function RoundRobinBoard({
+  data,
+  onChange,
+  readOnly = false,
+}: {
+  data: BracketData;
+  onChange?: (data: BracketData) => void;
+  readOnly?: boolean;
+}) {
+  const groups = roundRobinGroups(data);
+  const matches = roundRobinMatches(data);
+  const [active, setActive] = useState(0);
+  const groupIndex = Math.min(active, Math.max(0, groups.length - 1));
+  const groupMatches = matches.filter((match) => match.groupIndex === groupIndex);
+  const standings = roundRobinStandings(data, groupIndex);
+  const setMatchScore = (id: string, side: 0 | 1, raw: number) => {
+    if (!onChange) return;
+    const current = scoreFor(data, id);
+    const value = Math.max(0, Math.min(31, Number.isFinite(raw) ? raw : 0));
+    const next: MatchScore = [...current] as MatchScore;
+    next[side] = value;
+    if (value === 31 && next[side === 0 ? 1 : 0] === 31)
+      next[side === 0 ? 1 : 0] = 30;
+    onChange({ ...data, scores: { ...data.scores, [id]: next } });
+  };
+  if (!groups.length)
+    return <div className="empty-bracket-state"><b>No teams entered yet</b><small>Add at least two teams to generate round robin matches.</small></div>;
+  return (
+    <div className="round-robin-board">
+      <div className="round-robin-tabs" role="tablist" aria-label="Round robin brackets">
+        {groups.map((group, index) => (
+          <button type="button" role="tab" aria-selected={groupIndex === index} className={groupIndex === index ? "active" : ""} onClick={() => setActive(index)} key={index}>
+            <b>Bracket {String.fromCharCode(65 + index)}</b><small>{group.length} teams · {group.length * (group.length - 1) / 2} matches</small>
+          </button>
+        ))}
+      </div>
+      <div className="round-robin-grid">
+        <section className="standings-card">
+          <header><div><span>LIVE TABLE</span><h3>Standings</h3></div><small>Wins · H2H · Point difference</small></header>
+          <div className="standings-scroll"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>+/-</th></tr></thead><tbody>
+            {standings.map((row) => <tr key={row.team}><td><b className={row.rank === 1 ? "leader" : ""}>{row.rank}</b></td><td>{displayTeamName(row.team)}</td><td>{row.played}</td><td className="standing-wins">{row.wins}</td><td>{row.losses}</td><td>{row.difference > 0 ? "+" : ""}{row.difference}</td></tr>)}
+          </tbody></table></div>
+        </section>
+        <section className="round-robin-match-card">
+          <header><div><span>MATCHES</span><h3>Bracket {String.fromCharCode(65 + groupIndex)}</h3></div><small>{groupMatches.filter((match) => { const score = scoreFor(data, match.id); return score[0] === 31 || score[1] === 31; }).length} / {groupMatches.length} complete</small></header>
+          <div className="round-robin-match-list">{groupMatches.map((match) => { const score = scoreFor(data, match.id); return (
+            <article key={match.id} className={score[0] === 31 || score[1] === 31 ? "complete" : ""}>
+              <span>M{match.position}</span><div><b>{displayTeamName(match.pair[0])}</b><small>vs</small><b>{displayTeamName(match.pair[1])}</b></div>
+              {readOnly ? <strong>{score[0]}–{score[1]}</strong> : <fieldset aria-label={`Score for match ${match.position}`}><input aria-label={`${match.pair[0]} score`} type="number" min="0" max="31" value={score[0]} onChange={(event) => setMatchScore(match.id, 0, Number(event.target.value))}/><i>–</i><input aria-label={`${match.pair[1]} score`} type="number" min="0" max="31" value={score[1]} onChange={(event) => setMatchScore(match.id, 1, Number(event.target.value))}/></fieldset>}
+            </article>); })}</div>
+        </section>
+      </div>
+      {(data.advancement?.count ?? 0) > 0 && <div className="advancement-status"><b>ADVANCEMENT READY</b><span>{data.advancement?.count} team{data.advancement?.count === 1 ? "" : "s"} · {data.advancement?.mode === "best_overall" ? "best overall" : "from each bracket"} · {data.advancement?.allowByes === false ? "no byes" : "byes allowed"}</span></div>}
+    </div>
+  );
+}
+
 function MiniMatch({
   one,
   two,
@@ -367,6 +428,8 @@ function Bracket({
   highlightTeam?: string;
 }) {
   const bracket = data ?? initialBracket(level);
+  if (tournamentFormat(bracket) === "round_robin")
+    return <RoundRobinBoard data={bracket} readOnly />;
   const rounds = buildRounds(bracket);
   const finalMatch = rounds.at(-1)?.matches[0];
   const champion = finalMatch
@@ -986,24 +1049,27 @@ function EntryManager({
   const filled = enteredTeams.length;
   const playerCount = filled * 2;
   const openingMatches = Math.ceil(filled / 2);
+  const format = tournamentFormat(data);
+  const groups = roundRobinGroups(data);
+  const roundRobinMatchCount = roundRobinMatches(data).length;
   const changePlayer = (index: number, side: 0 | 1, value: string) => {
     const pair = splitTeam(data.teams[index]);
     pair[side] = value.toUpperCase();
     const teams = [...data.teams];
     teams[index] =
       pair[0] || pair[1] ? `${pair[0]} / ${pair[1]}` : `Open slot ${index + 1}`;
-    onChange({ teams, scores: emptyScores(teams.length) });
+    onChange({ ...data, teams, scores: emptyScores(teams.length) });
     setNotice("Entry updated · bracket scores reset");
   };
   const removeTeam = (index: number) => {
     const teams = data.teams.filter(
       (team, teamIndex) => teamIndex !== index && isRealTeam(team),
     );
-    onChange({ teams, scores: emptyScores(teams.length) });
+    onChange({ ...data, teams, scores: emptyScores(teams.length) });
     setNotice("Team removed · bracket updated immediately");
   };
   const clearEntries = () => {
-    onChange({ teams: [], scores: emptyScores(0) });
+    onChange({ ...data, teams: [], scores: emptyScores(0) });
     setNotice("Entry list cleared. Add your official doubles teams below.");
   };
   const moveTeam = (from: number, to: number) => {
@@ -1012,7 +1078,7 @@ function EntryManager({
       return;
     const [moved] = teams.splice(from, 1);
     teams.splice(to, 0, moved);
-    onChange({ teams, scores: emptyScores(teams.length) });
+    onChange({ ...data, teams, scores: emptyScores(teams.length) });
     setNotice(`Seed ${from + 1} moved to position ${to + 1} · bracket updated`);
   };
   const commitTeam = (one: string, two: string) => {
@@ -1020,7 +1086,7 @@ function EntryManager({
     const upperOne = one.toUpperCase();
     const upperTwo = two.toUpperCase();
     const nextTeams = [...teams, `${upperOne} / ${upperTwo}`];
-    onChange({ teams: nextTeams, scores: emptyScores(nextTeams.length) });
+    onChange({ ...data, teams: nextTeams, scores: emptyScores(nextTeams.length) });
     setPlayerOne("");
     setPlayerTwo("");
     setShowForm(false);
@@ -1070,6 +1136,101 @@ function EntryManager({
   };
   return (
     <div className="entry-manager">
+      <section className="format-selector" aria-label="Tournament format">
+        <div className="format-selector-heading">
+          <div>
+            <b>TOURNAMENT FORMAT</b>
+            <span>Choose how {division} · Level {level} will be played.</span>
+          </div>
+          <strong>{format === "round_robin" ? "ROUND ROBIN" : "SINGLE ELIMINATION"}</strong>
+        </div>
+        <div className="format-options">
+          <button
+            type="button"
+            className={format === "single_elimination" ? "selected" : ""}
+            onClick={() => {
+              onChange({ ...data, format: "single_elimination", scores: emptyScores(data.teams.length) });
+              setNotice("Single elimination selected · match scores reset");
+            }}
+          >
+            <i aria-hidden="true" />
+            <span><b>Single Elimination</b><small>One loss eliminates a team. Winners advance automatically.</small></span>
+          </button>
+          <button
+            type="button"
+            className={format === "round_robin" ? "selected" : ""}
+            onClick={() => {
+              onChange({ ...data, format: "round_robin", groupSize: data.groupSize ?? 4, scores: {} });
+              setNotice("Round robin selected · all group matches generated automatically");
+            }}
+          >
+            <i aria-hidden="true" />
+            <span><b>Round Robin</b><small>Every team plays every other team in its bracket once.</small></span>
+          </button>
+        </div>
+        {format === "round_robin" && (
+          <div className="round-robin-settings">
+            <label>
+              <span>Teams per bracket</span>
+              <input
+                type="number"
+                min="2"
+                max="32"
+                value={data.groupSize ?? 4}
+                onChange={(event) =>
+                  onChange({
+                    ...data,
+                    groupSize: Math.max(2, Math.min(32, Number(event.target.value) || 2)),
+                    scores: {},
+                  })
+                }
+              />
+            </label>
+            <label>
+              <span>Teams advancing</span>
+              <input
+                type="number"
+                min="0"
+                max="256"
+                value={data.advancement?.count ?? 0}
+                onChange={(event) =>
+                  onChange({
+                    ...data,
+                    advancement: {
+                      mode: data.advancement?.mode ?? "top_per_group",
+                      count: Math.max(0, Math.min(256, Number(event.target.value) || 0)),
+                      allowByes: data.advancement?.allowByes ?? true,
+                    },
+                  })
+                }
+              />
+            </label>
+            <label className="advancement-mode">
+              <span>Advancement rule</span>
+              <select
+                value={data.advancement?.mode ?? "top_per_group"}
+                onChange={(event) =>
+                  onChange({
+                    ...data,
+                    advancement: {
+                      mode: event.target.value as "top_per_group" | "best_overall",
+                      count: data.advancement?.count ?? 0,
+                      allowByes: data.advancement?.allowByes ?? true,
+                    },
+                  })
+                }
+              >
+                <option value="top_per_group">Top teams from each bracket</option>
+                <option value="best_overall">Best teams overall</option>
+              </select>
+            </label>
+            <span className="format-calculation">
+              <b>{groups.length} bracket{groups.length === 1 ? "" : "s"} · {roundRobinMatchCount} matches</b>
+              <small>Generated once from the saved entry list—never on refresh.</small>
+            </span>
+          </div>
+        )}
+      </section>
       <div className="entry-summary">
         <div>
           <span className="entry-count">
@@ -1097,10 +1258,12 @@ function EntryManager({
       </div>
       <div className="bracket-growth">
         <span>
-          <b>LIVE BRACKET: {openingMatches} OPENING MATCHES</b>
+          <b>{format === "round_robin" ? `ROUND ROBIN: ${roundRobinMatchCount} TOTAL MATCHES` : `LIVE BRACKET: ${openingMatches} OPENING MATCHES`}</b>
         </span>
         <small>
-          {filled < 2
+          {format === "round_robin"
+            ? `${groups.length} bracket${groups.length === 1 ? "" : "s"} · no duplicate matchups`
+            : filled < 2
             ? "Add at least 2 teams to begin scoring"
             : filled % 2 === 0
               ? "Every team is paired in the opening round"
@@ -1859,24 +2022,42 @@ function AdminView({
               }}
             />
           ) : <>
-          <div className="bracket-meta">
+           <div className="bracket-meta">
             <span>
               <i style={{ background: levelDetails[level].color }} />{" "}
               {division.toUpperCase()} · LEVEL {level}
             </span>
-            <small>
-              {bracketData.teams.filter(isRealTeam).length} teams entered ·
-              First to 31
-            </small>
-          </div>
-          <BracketEditor
-            data={bracketData}
-            onChange={(data) =>
-              changeBracket(data, "Unsaved score changes · autosaving…")
-            }
-            onSave={saveBracket}
-            saving={saving}
-          />
+             <small>
+               {bracketData.teams.filter(isRealTeam).length} teams entered ·
+               {tournamentFormat(bracketData) === "round_robin"
+                 ? ` Round Robin · ${roundRobinGroups(bracketData).length} brackets`
+                 : " First to 31"}
+             </small>
+           </div>
+           {tournamentFormat(bracketData) === "round_robin" ? (
+             <div className="editor-wrap">
+               <div className="editor-toolbar">
+                 <div><b>Official round robin</b><span>Results update standings and rankings immediately.</span></div>
+                 <span className="save-status">{saving}</span>
+                 <button onClick={saveBracket}>Save & publish changes</button>
+               </div>
+               <RoundRobinBoard
+                 data={bracketData}
+                 onChange={(data) =>
+                   changeBracket(data, "Unsaved score changes · autosaving…")
+                 }
+               />
+             </div>
+           ) : (
+             <BracketEditor
+               data={bracketData}
+               onChange={(data) =>
+                 changeBracket(data, "Unsaved score changes · autosaving…")
+               }
+               onSave={saveBracket}
+               saving={saving}
+             />
+           )}
           </>}
         </section>
       </main>
