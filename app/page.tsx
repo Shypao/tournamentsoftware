@@ -20,8 +20,11 @@ import {
   matchWinner,
   moveRoundParticipant,
   moveRoundMatch,
+  roundRobinComplete,
+  roundRobinEliminationData,
   roundRobinGroups,
   roundRobinMatches,
+  roundRobinQualifiers,
   roundRobinStandings,
   scoreFor,
   splitTeam,
@@ -346,6 +349,9 @@ function RoundRobinBoard({
   const groupIndex = Math.min(active, Math.max(0, groups.length - 1));
   const groupMatches = matches.filter((match) => match.groupIndex === groupIndex);
   const standings = roundRobinStandings(data, groupIndex);
+  const complete = roundRobinComplete(data);
+  const qualifiers = roundRobinQualifiers(data);
+  const advancementCount = Math.max(1, data.advancement?.count ?? 2);
   const setMatchScore = (id: string, side: 0 | 1, raw: number) => {
     if (!onChange) return;
     const current = scoreFor(data, id);
@@ -354,7 +360,10 @@ function RoundRobinBoard({
     next[side] = value;
     if (value === 31 && next[side === 0 ? 1 : 0] === 31)
       next[side === 0 ? 1 : 0] = 30;
-    onChange({ ...data, scores: { ...data.scores, [id]: next } });
+    const scores = Object.fromEntries(
+      Object.entries(data.scores).filter(([scoreId]) => !/^r\d+m\d+$/.test(scoreId)),
+    );
+    onChange({ ...data, scores: { ...scores, [id]: next } });
   };
   if (!groups.length)
     return <div className="empty-bracket-state"><b>No teams entered yet</b><small>Add at least two teams to generate round robin matches.</small></div>;
@@ -371,7 +380,7 @@ function RoundRobinBoard({
         <section className="standings-card">
           <header><div><span>LIVE TABLE</span><h3>Standings</h3></div><small>Wins · H2H · Point difference</small></header>
           <div className="standings-scroll"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>+/-</th></tr></thead><tbody>
-            {standings.map((row) => <tr key={row.team}><td><b className={row.rank === 1 ? "leader" : ""}>{row.rank}</b></td><td>{displayTeamName(row.team)}</td><td>{row.played}</td><td className="standing-wins">{row.wins}</td><td>{row.losses}</td><td>{row.difference > 0 ? "+" : ""}{row.difference}</td></tr>)}
+            {standings.map((row) => { const qualifying = data.advancement?.mode === "best_overall" ? qualifiers.includes(row.team) : row.rank <= advancementCount; return <tr className={complete && qualifying ? "qualifier" : ""} key={row.team}><td><b className={row.rank === 1 ? "leader" : ""}>{row.rank}</b></td><td>{displayTeamName(row.team)}{complete && qualifying && <small>Qualified</small>}</td><td>{row.played}</td><td className="standing-wins">{row.wins}</td><td>{row.losses}</td><td>{row.difference > 0 ? "+" : ""}{row.difference}</td></tr>; })}
           </tbody></table></div>
         </section>
         <section className="round-robin-match-card">
@@ -383,7 +392,7 @@ function RoundRobinBoard({
             </article>); })}</div>
         </section>
       </div>
-      {(data.advancement?.count ?? 0) > 0 && <div className="advancement-status"><b>ADVANCEMENT READY</b><span>{data.advancement?.count} team{data.advancement?.count === 1 ? "" : "s"} · {data.advancement?.mode === "best_overall" ? "best overall" : "from each bracket"} · {data.advancement?.allowByes === false ? "no byes" : "byes allowed"}</span></div>}
+      <div className={`advancement-status ${complete ? "complete" : ""}`}><b>{complete ? "QUALIFIERS SET" : "GROUP STAGE IN PROGRESS"}</b><span>{advancementCount} team{advancementCount === 1 ? "" : "s"} {data.advancement?.mode === "best_overall" ? "best overall" : "from each bracket"} advance to single elimination{complete ? "." : " after every bracket is complete."}</span></div>
     </div>
   );
 }
@@ -428,8 +437,10 @@ function Bracket({
   highlightTeam?: string;
 }) {
   const bracket = data ?? initialBracket(level);
-  if (tournamentFormat(bracket) === "round_robin")
-    return <RoundRobinBoard data={bracket} readOnly />;
+  if (tournamentFormat(bracket) === "round_robin") {
+    const elimination = roundRobinEliminationData(bracket);
+    return <><RoundRobinBoard data={bracket} readOnly />{elimination && <section className="knockout-stage"><header><span>FINAL STAGE</span><h3>Single elimination</h3><p>{elimination.teams.length} qualified teams · winners advance automatically</p></header><Bracket level={level} data={elimination} highlightTeam={highlightTeam} /></section>}</>;
+  }
   const rounds = buildRounds(bracket);
   const finalMatch = rounds.at(-1)?.matches[0];
   const champion = finalMatch
@@ -766,11 +777,13 @@ function BracketEditor({
   onChange,
   onSave,
   saving,
+  placementEditable = true,
 }: {
   data: BracketData;
   onChange: (data: BracketData) => void;
   onSave: () => void;
   saving: string;
+  placementEditable?: boolean;
 }) {
   const [draggedMatch, setDraggedMatch] = useState<{
     round: number;
@@ -846,7 +859,7 @@ function BracketEditor({
           </span>
         </div>
         <span className="save-status">{saving}</span>
-        <button
+        {placementEditable && <button
           className={`placement-lock ${data.positionsLocked ? "locked" : ""}`}
           type="button"
           onClick={() => {
@@ -859,7 +872,7 @@ function BracketEditor({
           }}
         >
           {data.positionsLocked ? "Positions locked" : "Lock match cards"}
-        </button>
+        </button>}
         <button onClick={onSave}>Save & publish changes</button>
       </div>
       {entered === 0 ? (
@@ -992,7 +1005,7 @@ function BracketEditor({
                           moveParticipant(roundIndex, slot)
                         }
                         positionsLocked={data.positionsLocked}
-                        movableMatchIndex={matchIndex}
+                        movableMatchIndex={placementEditable ? matchIndex : undefined}
                       />
                     ))}
                   </div>
@@ -1052,6 +1065,10 @@ function EntryManager({
   const format = tournamentFormat(data);
   const groups = roundRobinGroups(data);
   const roundRobinMatchCount = roundRobinMatches(data).length;
+  const groupScoresOnly = () =>
+    Object.fromEntries(
+      Object.entries(data.scores).filter(([scoreId]) => scoreId.startsWith("rr-")),
+    );
   const changePlayer = (index: number, side: 0 | 1, value: string) => {
     const pair = splitTeam(data.teams[index]);
     pair[side] = value.toUpperCase();
@@ -1160,8 +1177,18 @@ function EntryManager({
             type="button"
             className={format === "round_robin" ? "selected" : ""}
             onClick={() => {
-              onChange({ ...data, format: "round_robin", groupSize: data.groupSize ?? 4, scores: {} });
-              setNotice("Round robin selected · all group matches generated automatically");
+              onChange({
+                ...data,
+                format: "round_robin",
+                groupSize: data.groupSize ?? 4,
+                advancement: data.advancement ?? {
+                  mode: "top_per_group",
+                  count: 2,
+                  allowByes: true,
+                },
+                scores: {},
+              });
+              setNotice("Round robin selected · top two teams in each bracket advance to single elimination");
             }}
           >
             <i aria-hidden="true" />
@@ -1187,20 +1214,21 @@ function EntryManager({
               />
             </label>
             <label>
-              <span>Teams advancing</span>
+              <span>{data.advancement?.mode === "best_overall" ? "Teams advancing overall" : "Teams advancing per bracket"}</span>
               <input
                 type="number"
-                min="0"
+                min="1"
                 max="256"
-                value={data.advancement?.count ?? 0}
+                value={Math.max(1, data.advancement?.count ?? 2)}
                 onChange={(event) =>
                   onChange({
                     ...data,
                     advancement: {
                       mode: data.advancement?.mode ?? "top_per_group",
-                      count: Math.max(0, Math.min(256, Number(event.target.value) || 0)),
+                      count: Math.max(1, Math.min(256, Number(event.target.value) || 1)),
                       allowByes: data.advancement?.allowByes ?? true,
                     },
+                    scores: groupScoresOnly(),
                   })
                 }
               />
@@ -1214,9 +1242,10 @@ function EntryManager({
                     ...data,
                     advancement: {
                       mode: event.target.value as "top_per_group" | "best_overall",
-                      count: data.advancement?.count ?? 0,
+                      count: Math.max(1, data.advancement?.count ?? 2),
                       allowByes: data.advancement?.allowByes ?? true,
                     },
+                    scores: groupScoresOnly(),
                   })
                 }
               >
@@ -1698,6 +1727,7 @@ function AdminView({
     () => pendingScheduleMatches(operations.schedule, brackets),
     [operations.schedule, brackets],
   );
+  const roundRobinElimination = roundRobinEliminationData(bracketData);
   const saveBracket = () => {
     const key = `${division}-${level}`;
     const snapshot = bracketData;
@@ -2048,6 +2078,30 @@ function AdminView({
                    changeBracket(data, "Unsaved score changes · autosaving…")
                  }
                />
+               {roundRobinElimination && (
+                 <section className="knockout-stage admin-knockout-stage">
+                   <header>
+                     <span>FINAL STAGE</span>
+                     <h3>Single elimination</h3>
+                     <p>
+                       {roundRobinElimination.teams.length} qualified teams from
+                       the completed round-robin brackets.
+                     </p>
+                   </header>
+                   <BracketEditor
+                     data={roundRobinElimination}
+                     placementEditable={false}
+                     onChange={(eliminationData) =>
+                       changeBracket(
+                         { ...bracketData, scores: eliminationData.scores },
+                         "Unsaved elimination score changes · autosaving…",
+                       )
+                     }
+                     onSave={saveBracket}
+                     saving={saving}
+                   />
+                 </section>
+               )}
              </div>
            ) : (
              <BracketEditor

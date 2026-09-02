@@ -121,6 +121,71 @@ export function roundRobinStandings(
     return one.team.localeCompare(two.team);
   }).map((row, index) => ({ ...row, rank: index + 1 }));
 }
+
+export function roundRobinComplete(data: BracketData): boolean {
+  if (tournamentFormat(data) !== "round_robin") return false;
+  const matches = roundRobinMatches(data);
+  return (
+    matches.length > 0 &&
+    matches.every((match) => {
+      const score = scoreFor(data, match.id);
+      return score[0] === 31 || score[1] === 31;
+    })
+  );
+}
+
+function compareStanding(one: Standing, two: Standing) {
+  if (two.wins !== one.wins) return two.wins - one.wins;
+  if (two.difference !== one.difference) return two.difference - one.difference;
+  if (two.pointsFor !== one.pointsFor) return two.pointsFor - one.pointsFor;
+  return one.team.localeCompare(two.team);
+}
+
+/** Qualifiers are seeded strongest-versus-weakest for the knockout opener. */
+export function roundRobinQualifiers(data: BracketData): string[] {
+  if (!roundRobinComplete(data)) return [];
+  const groups = roundRobinGroups(data);
+  const count = Math.max(1, data.advancement?.count ?? 2);
+  const standings = groups.map((_, groupIndex) =>
+    roundRobinStandings(data, groupIndex),
+  );
+  if (
+    data.advancement?.mode !== "best_overall" &&
+    count === 2 &&
+    groups.length > 1 &&
+    standings.every((group) => group.length >= 2)
+  ) {
+    return standings.flatMap((group, groupIndex) => [
+      group[0].team,
+      standings[standings.length - 1 - groupIndex][1].team,
+    ]);
+  }
+  const selected = data.advancement?.mode === "best_overall"
+    ? standings
+        .flat()
+        .sort(compareStanding)
+        .slice(0, Math.min(count, data.teams.filter(isRealTeam).length))
+    : standings.flatMap((group) => group.slice(0, count));
+
+  const ranked = [...selected].sort(compareStanding).map((row) => row.team);
+  const seeded: string[] = [];
+  for (let low = 0, high = ranked.length - 1; low <= high; low += 1, high -= 1) {
+    seeded.push(ranked[low]);
+    if (low !== high) seeded.push(ranked[high]);
+  }
+  return seeded;
+}
+
+export function roundRobinEliminationData(data: BracketData): BracketData | null {
+  const teams = roundRobinQualifiers(data);
+  if (teams.length < 2) return null;
+  return {
+    ...data,
+    teams,
+    format: "single_elimination",
+    positionsLocked: true,
+  };
+}
 export type BracketRound = { label: string; short: string; matches: { id: string; pair: [string, string] }[] };
 
 export function isOpenTeam(team: string) {

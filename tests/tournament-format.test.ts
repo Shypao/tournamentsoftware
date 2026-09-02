@@ -2,12 +2,20 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   nextDrawSize,
+  buildRounds,
+  roundRobinComplete,
+  roundRobinEliminationData,
   roundRobinGroups,
   roundRobinMatches,
+  roundRobinQualifiers,
   roundRobinStandings,
   tournamentFormat,
   type BracketData,
 } from "../lib/bracket.ts";
+import {
+  pendingScheduleMatches,
+  syncScheduleWithBracket,
+} from "../lib/tournament-data.ts";
 
 const teams = Array.from({ length: 20 }, (_, index) => `PLAYER ${index * 2 + 1} / PLAYER ${index * 2 + 2}`);
 
@@ -56,4 +64,69 @@ test("standings apply head-to-head after wins", () => {
   assert.deepEqual(standings.slice(0, 2).map((row) => row.wins), [2, 2]);
   assert.equal(standings[0].team, teams[0]);
   assert.equal(standings[1].team, teams[1]);
+});
+
+test("single elimination waits until all four round-robin brackets finish", () => {
+  const data: BracketData = {
+    teams: teams.slice(0, 16),
+    format: "round_robin",
+    groupSize: 4,
+    advancement: { mode: "top_per_group", count: 2, allowByes: true },
+    scores: {},
+  };
+  const matches = roundRobinMatches(data);
+  assert.equal(roundRobinGroups(data).length, 4);
+  assert.equal(roundRobinComplete(data), false);
+  assert.equal(roundRobinEliminationData(data), null);
+
+  matches.slice(0, -1).forEach((match) => {
+    data.scores[match.id] = [31, 20];
+  });
+  assert.equal(roundRobinComplete(data), false);
+  assert.equal(roundRobinQualifiers(data).length, 0);
+
+  data.scores[matches.at(-1)!.id] = [31, 20];
+  assert.equal(roundRobinComplete(data), true);
+  const elimination = roundRobinEliminationData(data);
+  assert.ok(elimination);
+  assert.equal(elimination.teams.length, 8);
+  assert.equal(buildRounds(elimination)[0].matches.length, 4);
+});
+
+test("top two qualifiers do not immediately replay their group match", () => {
+  const data: BracketData = {
+    teams: teams.slice(0, 16),
+    format: "round_robin",
+    groupSize: 4,
+    advancement: { mode: "top_per_group", count: 2, allowByes: true },
+    scores: {},
+  };
+  for (const match of roundRobinMatches(data)) data.scores[match.id] = [31, 20];
+  const groups = roundRobinGroups(data);
+  const groupByTeam = new Map(
+    groups.flatMap((group, groupIndex) =>
+      group.map((team) => [team, groupIndex] as const),
+    ),
+  );
+  const openingMatches = buildRounds(roundRobinEliminationData(data)!)[0].matches;
+  assert.ok(
+    openingMatches.every(
+      (match) => groupByTeam.get(match.pair[0]) !== groupByTeam.get(match.pair[1]),
+    ),
+  );
+});
+
+test("completed groups publish only the opening single-elimination matches as pending", () => {
+  const data: BracketData = {
+    teams: teams.slice(0, 16),
+    format: "round_robin",
+    groupSize: 4,
+    advancement: { mode: "top_per_group", count: 2, allowByes: true },
+    scores: {},
+  };
+  for (const match of roundRobinMatches(data)) data.scores[match.id] = [31, 20];
+  const schedule = syncScheduleWithBracket([], "Men's Doubles", "A", data);
+  const pending = pendingScheduleMatches(schedule, { "Men's Doubles-A": data });
+  assert.equal(pending.length, 4);
+  assert.ok(pending.every((match) => match.id.includes("|r0m")));
 });

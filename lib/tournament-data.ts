@@ -3,7 +3,10 @@ import {
   isRealTeam,
   isWaitingTeam,
   matchWinner,
+  roundRobinComplete,
+  roundRobinEliminationData,
   roundRobinMatches,
+  roundRobinQualifiers,
   roundRobinStandings,
   scoreFor,
   splitTeam,
@@ -82,7 +85,13 @@ export function resolvePlayerProgress(
     }
     const groupIndex = roundRobinMatches(bracket).find((match) => match.pair.includes(team))?.groupIndex ?? 0;
     const standing = roundRobinStandings(bracket, groupIndex).find((row) => row.team === team);
-    return { ...player, opponent: `Ranked #${standing?.rank ?? "–"}`, court: standing?.rank === 1 ? "Group leader" : "Round robin complete", time: `${standing?.wins ?? 0} wins · ${standing?.losses ?? 0} losses`, round: `BRACKET ${String.fromCharCode(65 + groupIndex)}`, matchStatus: standing?.rank === 1 ? "champion" : "eliminated" };
+    if (!roundRobinComplete(bracket)) {
+      return { ...player, opponent: "To be decided", court: "Group stage", time: "Awaiting remaining group matches", round: `BRACKET ${String.fromCharCode(65 + groupIndex)}`, matchStatus: "upcoming" };
+    }
+    const elimination = roundRobinEliminationData(bracket);
+    if (elimination && roundRobinQualifiers(bracket).includes(team))
+      return resolvePlayerProgress(player, elimination, schedule);
+    return { ...player, opponent: `Ranked #${standing?.rank ?? "–"}`, court: "Round robin complete", time: `${standing?.wins ?? 0} wins · ${standing?.losses ?? 0} losses`, round: `BRACKET ${String.fromCharCode(65 + groupIndex)}`, matchStatus: "eliminated" };
   }
 
   for (const round of buildRounds(bracket)) {
@@ -187,8 +196,12 @@ export function syncScheduleWithBracket(
   level: TournamentLevel,
   bracketData: BracketData,
 ): ScheduleRecord[] {
+  const elimination = roundRobinEliminationData(bracketData);
   const rounds = tournamentFormat(bracketData) === "round_robin"
-    ? [{ matches: roundRobinMatches(bracketData) }]
+    ? [
+        { matches: roundRobinMatches(bracketData) },
+        ...(elimination ? buildRounds(elimination) : []),
+      ]
     : buildRounds(bracketData);
   let changed = false;
   const activeIds = new Set<string>();
@@ -200,9 +213,10 @@ export function syncScheduleWithBracket(
       const id = `${division}|${level}|${match.id}`;
       const currentScore = scoreFor(bracketData, match.id);
       const score = `${currentScore[0]}–${currentScore[1]}`;
-      const winner = tournamentFormat(bracketData) === "round_robin"
+      const roundRobinMatch = match.id.startsWith("rr-");
+      const winner = roundRobinMatch
         ? currentScore[0] === 31 ? teamOne : currentScore[1] === 31 ? teamTwo : null
-        : matchWinner(bracketData, match.id, match.pair);
+        : matchWinner(elimination ?? bracketData, match.id, match.pair);
       activeIds.add(id);
       const existingIndex = next.findIndex((row) => row.id === id);
       if (existingIndex === -1) {
@@ -274,18 +288,24 @@ export function pendingScheduleMatches(
     if (!row.id.startsWith(prefix)) return true;
 
     const matchId = row.id.slice(prefix.length);
-    const match = (tournamentFormat(bracket) === "round_robin"
-      ? roundRobinMatches(bracket)
-      : buildRounds(bracket).flatMap((round) => round.matches)
-    ).find((candidate) => candidate.id === matchId);
+    const elimination = roundRobinEliminationData(bracket);
+    const matches = tournamentFormat(bracket) === "round_robin"
+      ? [
+          ...roundRobinMatches(bracket),
+          ...(elimination
+            ? buildRounds(elimination).flatMap((round) => round.matches)
+            : []),
+        ]
+      : buildRounds(bracket).flatMap((round) => round.matches);
+    const match = matches.find((candidate) => candidate.id === matchId);
 
     // A generated row whose bracket match no longer exists is stale.
     if (!match) return false;
-    if (tournamentFormat(bracket) === "round_robin") {
+    if (match.id.startsWith("rr-")) {
       const score = scoreFor(bracket, match.id);
       return score[0] !== 31 && score[1] !== 31;
     }
-    return !matchWinner(bracket, match.id, match.pair);
+    return !matchWinner(elimination ?? bracket, match.id, match.pair);
   });
 }
 
