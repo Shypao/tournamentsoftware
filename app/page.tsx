@@ -24,7 +24,7 @@ import {
   roundRobinEliminationData,
   roundRobinGroups,
   roundRobinMatches,
-  roundRobinQualifiers,
+  roundRobinQualifiers,xf
   roundRobinStandings,
   scoreFor,
   splitTeam,
@@ -1250,7 +1250,7 @@ function EntryManager({
                 }
               >
                 <option value="top_per_group">Top teams from each bracket</option>
-                <option value="best_overall">Best teams overall</option>
+                <option value="best_overall"> Pointing System </option>
               </select>
             </label>
             <span className="format-calculation">
