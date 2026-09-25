@@ -130,8 +130,8 @@ nav button:hover { background:#f7ece9; } nav button.active { background:#f5deda;
 .division-overview article{grid-template-columns:1fr auto}
 @media (max-width:720px){.player-entry-tabs{margin-top:0}.player-entry-tabs button{min-width:155px}}
 
-/* A round containing a bye allows its participant names to be swapped. */
-.bye-participant-draggable{cursor:grab;border-radius:5px;background:#fff7d9;outline:1px dashed #d89a1d;padding-left:6px}.bye-participant-draggable:active{cursor:grabbing}.bye-participant-draggable.participant-dragging{opacity:.45;background:#ffe7a1}
+/* Quarterfinal and semifinal participant names can be swapped while unlocked. */
+.participant-name-draggable{cursor:grab;border-radius:5px;background:#fff7d9;outline:1px dashed #d89a1d;padding-left:6px}.participant-name-draggable:active{cursor:grabbing}.participant-name-draggable.participant-dragging{opacity:.45;background:#ffe7a1}
 
 /* Team ordering uses drag-and-drop only; removal requires confirmation. */
 .entry-row{grid-template-columns:60px 1fr 18px 1fr auto}

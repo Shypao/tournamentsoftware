@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   nextDrawSize,
   buildRounds,
+  moveRoundParticipant,
   roundRobinComplete,
   roundRobinEliminationData,
   roundRobinGroups,
@@ -129,4 +130,34 @@ test("completed groups publish only the opening single-elimination matches as pe
   const pending = pendingScheduleMatches(schedule, { "Men's Doubles-A": data });
   assert.equal(pending.length, 4);
   assert.ok(pending.every((match) => match.id.includes("|r0m")));
+});
+
+test("participant names can move in quarterfinals and semifinals", () => {
+  const data: BracketData = {
+    teams: teams.slice(0, 8),
+    scores: {
+      r0m0: [31, 10],
+      r0m1: [31, 11],
+      r0m2: [31, 12],
+      r0m3: [31, 13],
+      r1m0: [31, 20],
+      r1m1: [25, 31],
+      r2m0: [31, 22],
+    },
+  };
+
+  const movedQuarterfinal = moveRoundParticipant(data, 0, 0, 2);
+  const quarterfinals = buildRounds(movedQuarterfinal)[0];
+  assert.deepEqual(quarterfinals.matches[0].pair, [teams[2], teams[1]]);
+  assert.deepEqual(quarterfinals.matches[1].pair, [teams[0], teams[3]]);
+  assert.deepEqual(movedQuarterfinal.scores.r0m0, [0, 0]);
+  assert.deepEqual(movedQuarterfinal.scores.r2m0, [0, 0]);
+
+  const movedSemifinal = moveRoundParticipant(data, 1, 0, 2);
+  const semifinals = buildRounds(movedSemifinal)[1];
+  assert.equal(semifinals.matches[0].pair[0], teams[4]);
+  assert.equal(semifinals.matches[1].pair[0], teams[0]);
+  assert.deepEqual(movedSemifinal.scores.r0m0, [31, 10]);
+  assert.deepEqual(movedSemifinal.scores.r1m0, [0, 0]);
+  assert.deepEqual(movedSemifinal.scores.r2m0, [0, 0]);
 });

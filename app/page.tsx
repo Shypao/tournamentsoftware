@@ -24,7 +24,7 @@ import {
   roundRobinEliminationData,
   roundRobinGroups,
   roundRobinMatches,
-  roundRobinQualifiers,xf
+  roundRobinQualifiers,
   roundRobinStandings,
   scoreFor,
   splitTeam,
@@ -704,7 +704,7 @@ function ScoreMatch({
               isWaitingTeam(team) || isOpenTeam(team)
                 ? "placeholder-team"
                 : ""
-            } ${nameDraggable ? "bye-participant-draggable" : ""} ${
+            } ${nameDraggable ? "participant-name-draggable" : ""} ${
               draggedParticipantSlot === participantSlot
                 ? "participant-dragging"
                 : ""
@@ -712,7 +712,7 @@ function ScoreMatch({
             draggable={nameDraggable}
             title={
               nameDraggable
-                ? "Drag this name onto another slot to choose who receives the bye"
+                ? "Drag this name onto another quarterfinal or semifinal slot"
                 : undefined
             }
             onDragStart={(event) => {
@@ -854,8 +854,8 @@ function BracketEditor({
           <b>Official live bracket</b>
           <span>
             {entered} doubles teams · {entered * 2} players · bracket expands
-            automatically · team names are locked · unlock placement to drag
-            match cards within any round.
+            automatically · unlock placement to drag match cards and move names
+            between quarterfinal or semifinal slots.
           </span>
         </div>
         <span className="save-status">{saving}</span>
@@ -949,9 +949,10 @@ function BracketEditor({
                 })}
               </svg>
               {rounds.map((round, roundIndex) => {
-                const roundHasBye = round.matches.some((match) =>
-                  match.pair.some(isOpenTeam),
-                );
+                const participantNamesMovable =
+                  placementEditable &&
+                  (round.label === "QUARTERFINALS" ||
+                    round.label === "SEMIFINALS");
                 return (
                 <div
                   id={`admin-round-${roundIndex}`}
@@ -989,7 +990,7 @@ function BracketEditor({
                           )
                         }
                         onMatchDrop={(index) => moveMatch(roundIndex, index)}
-                        participantDragEnabled={roundHasBye}
+                        participantDragEnabled={participantNamesMovable}
                         draggedParticipantSlot={
                           draggedParticipant?.round === roundIndex
                             ? draggedParticipant.slot

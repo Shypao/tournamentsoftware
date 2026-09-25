@@ -368,7 +368,6 @@ export function moveRoundParticipant(
   const slotCount = (round?.matches.length ?? 0) * 2;
   if (
     !round ||
-    !round.matches.some((match) => match.pair.some(isOpenTeam)) ||
     fromSlot < 0 ||
     toSlot < 0 ||
     fromSlot >= slotCount ||
