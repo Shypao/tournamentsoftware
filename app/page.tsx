@@ -1057,6 +1057,7 @@ function EntryManager({
     index: number;
     team: string;
   } | null>(null);
+  const [clearConfirmation, setClearConfirmation] = useState<string | null>(null);
   const enteredTeams = data.teams
     .map((team, index) => ({ team, index }))
     .filter(({ team }) => isRealTeam(team));
@@ -1275,8 +1276,12 @@ function EntryManager({
           </p>
         </div>
         <div>
-          <button className="quiet-action" onClick={clearEntries}>
-            Clear entries
+          <button
+            className="quiet-action"
+            type="button"
+            onClick={() => setClearConfirmation("")}
+          >
+            Clear all entries
           </button>
           <button
             className="add-entry-button"
@@ -1454,6 +1459,56 @@ function EntryManager({
                 }}
               >
                 Remove team
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
+      {clearConfirmation !== null && (
+        <div className="confirmation-backdrop" role="presentation">
+          <section
+            className="confirmation-dialog clear-entries-dialog"
+            role="alertdialog"
+            aria-modal="true"
+            aria-labelledby="clear-entries-title"
+            aria-describedby="clear-entries-copy"
+          >
+            <h2 id="clear-entries-title">Clear all entries?</h2>
+            <p id="clear-entries-copy">
+              This will remove every team from {division}, Level {level} and
+              reset its bracket scores. This cannot be undone.
+            </p>
+            <label className="confirmation-input-label" htmlFor="clear-entries-confirmation">
+              Type <b>DELETE</b> to confirm
+            </label>
+            <input
+              id="clear-entries-confirmation"
+              className="confirmation-input"
+              value={clearConfirmation ?? ""}
+              onChange={(event) => setClearConfirmation(event.target.value)}
+              placeholder="DELETE"
+              autoFocus
+              autoComplete="off"
+              spellCheck={false}
+            />
+            <div>
+              <button
+                className="secondary"
+                type="button"
+                onClick={() => setClearConfirmation(null)}
+              >
+                Cancel
+              </button>
+              <button
+                className="primary danger-action"
+                type="button"
+                disabled={clearConfirmation !== "DELETE"}
+                onClick={() => {
+                  clearEntries();
+                  setClearConfirmation(null);
+                }}
+              >
+                Clear all entries
               </button>
             </div>
           </section>

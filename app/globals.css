@@ -136,6 +136,7 @@ nav button:hover { background:#f7ece9; } nav button.active { background:#f5deda;
 /* Team ordering uses drag-and-drop only; removal requires confirmation. */
 .entry-row{grid-template-columns:60px 1fr 18px 1fr auto}
 .remove-team-dialog p b{color:#3b2421}.confirmation-dialog .danger-action{background:#a80f09}.confirmation-dialog .danger-action:hover{background:#7f0b07}
+.clear-entries-dialog .confirmation-input-label{display:block;margin-top:20px;color:#735d59;font-size:14px}.clear-entries-dialog .confirmation-input-label b{color:#a80f09;letter-spacing:1px}.clear-entries-dialog .confirmation-input{display:block;width:100%;box-sizing:border-box;margin-top:8px;border:1px solid #d9c4c0;border-radius:7px;padding:10px 12px;text-align:center;font-size:16px;font-weight:800;letter-spacing:1px;outline:0}.clear-entries-dialog .confirmation-input:focus{border-color:#a80f09;box-shadow:0 0 0 2px #f7d8d5}
 @media (max-width:720px){.entry-row{grid-template-columns:54px 1fr 14px 1fr}.entry-row .remove-entry{grid-column:4;justify-self:end}}
 
 /* Player-friendly final result cards */
