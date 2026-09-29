@@ -2139,17 +2139,24 @@ function AdminView({
                    <header>
                      <span>FINAL STAGE</span>
                      <h3>Single elimination</h3>
-                     <p>
-                       {roundRobinElimination.teams.length} qualified teams from
-                       the completed round-robin brackets.
-                     </p>
+                   <p>
+                     {roundRobinElimination.teams.length} qualified teams from
+                       the completed round-robin brackets. Unlock placement to
+                       configure the finals cards.
+                   </p>
                    </header>
                    <BracketEditor
                      data={roundRobinElimination}
-                     placementEditable={false}
+                     placementEditable
                      onChange={(eliminationData) =>
                        changeBracket(
-                         { ...bracketData, scores: eliminationData.scores },
+                         {
+                           ...bracketData,
+                           scores: eliminationData.scores,
+                           positionsLocked: eliminationData.positionsLocked,
+                           roundOrders: eliminationData.roundOrders,
+                           roundSlotOrders: eliminationData.roundSlotOrders,
+                         },
                          "Unsaved elimination score changes · autosaving…",
                        )
                      }

@@ -183,7 +183,7 @@ export function roundRobinEliminationData(data: BracketData): BracketData | null
     ...data,
     teams,
     format: "single_elimination",
-    positionsLocked: true,
+    positionsLocked: data.positionsLocked ?? false,
   };
 }
 export type BracketRound = { label: string; short: string; matches: { id: string; pair: [string, string] }[] };
@@ -332,7 +332,6 @@ export function moveRoundMatch(
   fromMatch: number,
   toMatch: number,
 ): BracketData {
-  if (roundIndex === 0) return moveFirstRoundMatch(data, fromMatch, toMatch);
   const round = buildRounds(data)[roundIndex];
   if (
     !round ||
@@ -343,6 +342,29 @@ export function moveRoundMatch(
     fromMatch === toMatch
   )
     return data;
+  if (roundIndex === 0) {
+    const slotCount = round.matches.length * 2;
+    const slotOrder =
+      data.roundSlotOrders?.r0?.length === slotCount
+        ? [...data.roundSlotOrders.r0]
+        : Array.from({ length: slotCount }, (_, index) => index);
+    const [moved] = slotOrder.splice(fromMatch * 2, 2);
+    const second = slotOrder.splice(fromMatch * 2, 1)[0];
+    const destination = toMatch * 2;
+    slotOrder.splice(destination, 0, moved, second);
+    return {
+      ...data,
+      scores: Object.fromEntries(
+        Object.entries(data.scores).map(([id, score]) =>
+          /^r\d+m/.test(id) ? [id, [0, 0] as MatchScore] : [id, score],
+        ),
+      ),
+      roundSlotOrders: {
+        ...data.roundSlotOrders,
+        r0: slotOrder,
+      },
+    };
+  }
   const order = round.matches.map((match) => match.id);
   const [moved] = order.splice(fromMatch, 1);
   order.splice(toMatch, 0, moved);
