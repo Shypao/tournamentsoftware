@@ -142,10 +142,8 @@ function Sidebar({
         {item("overview", "Overview")}
         {item("matches", "Matches")}
         {item("teams", "Teams")}
-        {item("courts", "Courts")}
         {item("brackets", "Brackets")}
         <p className="nav-label spaced">MANAGEMENT</p>
-        {item("schedule", "Schedule")}
         {item("settings", "Settings")}
         <button onClick={() => setView("player")}>
           Public player page
@@ -2217,7 +2215,6 @@ function AdminView({
                   <strong>{match.score}</strong>
                   <small>Live</small>
                 </div>
-                <button onClick={() => setSection("schedule")}>View</button>
               </div>
             ))}
           </div>
@@ -2402,9 +2399,6 @@ function AdminView({
       {},
     ),
   ).length;
-  const activeCourts = operations.courts.filter(
-    (court) => court.status !== "available",
-  ).length;
   return (
     <main className="page">
       <section className="hero-row invitational-admin-hero">
@@ -2427,11 +2421,6 @@ function AdminView({
           <button className="secondary" onClick={() => setView("player")}>
             Public player page
           </button>
-          <button className="primary" onClick={() => setSection("schedule")}>
-            {operations.schedulePublished
-              ? "Schedule published"
-              : "Update schedule"}
-          </button>
         </div>
       </section>
       <section className="stat-grid">
@@ -2440,22 +2429,6 @@ function AdminView({
             <small>REGISTERED TEAMS</small>
             <strong>{registeredTeams}</strong>
             <em>From saved player records</em>
-          </div>
-        </article>
-        <article>
-          <div>
-            <small>SCHEDULED MATCHES</small>
-            <strong>{operations.schedule.length}</strong>
-            <em>Shared live schedule</em>
-          </div>
-        </article>
-        <article>
-          <div>
-            <small>ACTIVE COURTS</small>
-            <strong>
-              {activeCourts} <i>/ {operations.courts.length}</i>
-            </strong>
-            <em>{operations.courts.length - activeCourts} available</em>
           </div>
         </article>
         <article>
@@ -2528,40 +2501,8 @@ function AdminView({
                   <strong>{match.score}</strong>
                   <small>Live</small>
                 </div>
-                <button onClick={() => setSection("schedule")}>View</button>
               </div>
             ))}
-          </div>
-        </article>
-        <article className="panel timeline-panel">
-          <div className="panel-head">
-            <div>
-              <h2>Up next</h2>
-              <p>Database-backed court calls</p>
-            </div>
-            <button onClick={() => setSection("schedule")}>
-              Full schedule
-            </button>
-          </div>
-          <div className="timeline">
-            {pendingMatches
-              .slice(0, 3)
-              .map((match) => (
-                <div key={match.id}>
-                  <time>{match.time}</time>
-                  <i className={match.status === "live" ? "current" : ""} />
-                  <span>
-                    <b>
-                      {match.court} · {match.division.replace(" Doubles", "")}{" "}
-                      {match.level}
-                    </b>
-                    <small>
-                      {displayTeamName(match.teamOne)} vs. {displayTeamName(match.teamTwo)}
-                    </small>
-                  </span>
-                  {match.status === "live" && <em>Live</em>}
-                </div>
-              ))}
           </div>
         </article>
       </section>
@@ -2589,10 +2530,6 @@ function SearchLanding({
   onSelectName: (name: string) => void;
 }) {
   const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
-  const pendingMatches = useMemo(
-    () => pendingScheduleMatches(operations.schedule, brackets),
-    [operations.schedule, brackets],
-  );
   const [directoryOpen, setDirectoryOpen] = useState(false);
   const [directoryQuery, setDirectoryQuery] = useState("");
   const filteredDirectoryNames = directoryNames.filter((name) =>
@@ -2649,16 +2586,6 @@ function SearchLanding({
           <span>
             <b>31</b>
             <small>Points to win</small>
-          </span>
-          <i />
-          <span>
-            <b>{pendingMatches.length}</b>
-            <small>Pending matches</small>
-          </span>
-          <i />
-          <span>
-            <b>{operations.courts.length}</b>
-            <small>Match courts</small>
           </span>
         </div>
       </section>
@@ -2757,37 +2684,6 @@ function SearchLanding({
                   <b key={level}>{level}</b>
                 ))}
               </div>
-            </article>
-          ))}
-        </div>
-      </section>
-      <section className="public-schedule" id="schedule">
-        <div className="public-schedule-head">
-          <div>
-            <p className="public-kicker">TOURNAMENT DAY · OCTOBER 4, 2026</p>
-            <h2>Live match schedule</h2>
-            <p>Times, courts, opponents, and scores update from the official tournament desk.</p>
-          </div>
-          <span className={operations.schedulePublished ? "published" : "draft"}>
-            {operations.schedulePublished ? "OFFICIAL SCHEDULE" : "SCHEDULE PREVIEW"}
-          </span>
-        </div>
-        <div className="public-schedule-list">
-          {pendingMatches.length === 0 && (
-            <p className="court-assign-empty">
-              No waiting or pending matches right now.
-            </p>
-          )}
-          {pendingMatches.map((match) => (
-            <article key={match.id}>
-              <time>{match.time || "TBA"}</time>
-              <div><b>{displayTeamName(match.teamOne)}</b><small>vs. {displayTeamName(match.teamTwo)}</small></div>
-              <span>{match.division.replace(" Doubles", "")} · Level {match.level}</span>
-              <strong>{match.court}</strong>
-              <em className={match.status} aria-label={`${match.status}: ${match.score}`}>
-                <span>{match.status}</span>
-                <b>{match.score}</b>
-              </em>
             </article>
           ))}
         </div>
