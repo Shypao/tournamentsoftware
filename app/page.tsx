@@ -357,8 +357,30 @@ function RoundRobinBoard({
       setActive(0);
       return;
     }
-    const maxSize = totalTeams - (groups.length - 1) * 2;
-    const targetSize = Math.max(2, Math.min(maxSize, rawSize));
+    const priorTeams = groups
+      .slice(0, groupIndex)
+      .reduce((total, group) => total + group.length, 0);
+    const trailingTeams = groups
+      .slice(groupIndex + 1)
+      .reduce((total, group) => total + group.length, 0);
+    const requestedSize = Math.max(
+      2,
+      Math.min(totalTeams - priorTeams, rawSize),
+    );
+    if (requestedSize >= groups[groupIndex].length + trailingTeams) {
+      const sizes = groups
+        .slice(0, groupIndex)
+        .map((group) => group.length);
+      sizes.push(requestedSize);
+      const remainingTeams = totalTeams - priorTeams - requestedSize;
+      if (remainingTeams > 0) sizes.push(remainingTeams);
+      onChange({ ...data, groupSizes: sizes, scores: {} });
+      setActive(Math.min(groupIndex, sizes.length - 1));
+      return;
+    }
+    const maxSize =
+      totalTeams - priorTeams - (groups.length - groupIndex - 1) * 2;
+    const targetSize = Math.max(2, Math.min(maxSize, requestedSize));
     const otherIndexes = groups
       .map((_, index) => index)
       .filter((index) => index !== groupIndex);
