@@ -140,7 +140,6 @@ function Sidebar({
       <nav aria-label="Admin navigation">
         <p className="nav-label">TOURNAMENT</p>
         {item("overview", "Overview")}
-        {item("matches", "Matches")}
         {item("teams", "Teams")}
         {item("brackets", "Brackets")}
         <p className="nav-label spaced">MANAGEMENT</p>
@@ -2478,7 +2477,6 @@ function AdminView({
               <h2>Live doubles matches</h2>
               <p>{liveMatches.length} matches currently on court</p>
             </div>
-            <button onClick={() => setSection("matches")}>View all</button>
           </div>
           <div className="match-list">
             {liveMatches.map((match) => (
