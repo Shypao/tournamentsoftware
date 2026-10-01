@@ -41,6 +41,18 @@ test("odd groups generate every pairing without self matches", () => {
   assert.equal(roundRobinMatches(data).length, 10);
 });
 
+test("round robin supports custom team counts per bracket", () => {
+  const data: BracketData = {
+    teams,
+    scores: {},
+    format: "round_robin",
+    groupSize: 4,
+    groupSizes: [5, 4, 4, 4, 3],
+  };
+  assert.deepEqual(roundRobinGroups(data).map((group) => group.length), [5, 4, 4, 4, 3]);
+  assert.equal(roundRobinMatches(data).length, 31);
+});
+
 test("standings apply head-to-head after wins", () => {
   const data: BracketData = {
     teams: teams.slice(0, 4),

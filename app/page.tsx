@@ -349,6 +349,40 @@ function RoundRobinBoard({
   const complete = roundRobinComplete(data);
   const qualifiers = roundRobinQualifiers(data);
   const advancementCount = Math.max(1, data.advancement?.count ?? 2);
+  const updateGroupSize = (rawSize: number) => {
+    if (!onChange || !groups[groupIndex]) return;
+    const totalTeams = data.teams.filter(isRealTeam).length;
+    if (rawSize >= totalTeams) {
+      onChange({ ...data, groupSizes: [totalTeams], scores: {} });
+      setActive(0);
+      return;
+    }
+    const maxSize = totalTeams - (groups.length - 1) * 2;
+    const targetSize = Math.max(2, Math.min(maxSize, rawSize));
+    const otherIndexes = groups
+      .map((_, index) => index)
+      .filter((index) => index !== groupIndex);
+    const sizes = groups.map(() => 2);
+    sizes[groupIndex] = targetSize;
+    let remaining =
+      totalTeams - targetSize - otherIndexes.length * 2;
+    otherIndexes.forEach((index) => {
+      const preferred = Math.max(0, groups[index].length - 2);
+      const extra = Math.min(preferred, remaining);
+      sizes[index] += extra;
+      remaining -= extra;
+    });
+    let cursor = 0;
+    while (remaining > 0 && otherIndexes.length > 0) {
+      const index = otherIndexes[cursor % otherIndexes.length];
+      if (sizes[index] < 32) {
+        sizes[index] += 1;
+        remaining -= 1;
+      }
+      cursor += 1;
+    }
+    onChange({ ...data, groupSizes: sizes, scores: {} });
+  };
   const setMatchScore = (id: string, side: 0 | 1, raw: number) => {
     if (!onChange) return;
     const current = scoreFor(data, id);
@@ -381,7 +415,7 @@ function RoundRobinBoard({
           </tbody></table></div>
         </section>
         <section className="round-robin-match-card">
-          <header><div><span>MATCHES</span><h3>Bracket {String.fromCharCode(65 + groupIndex)}</h3></div><small>{groupMatches.filter((match) => { const score = scoreFor(data, match.id); return score[0] === 31 || score[1] === 31; }).length} / {groupMatches.length} complete</small></header>
+          <header><div><span>MATCHES</span><h3>Bracket {String.fromCharCode(65 + groupIndex)}</h3></div><label className="round-robin-card-size"><span>Teams</span><input type="number" min="2" max={data.teams.filter(isRealTeam).length} value={groups[groupIndex].length} onChange={(event) => updateGroupSize(Number(event.target.value) || 2)} /></label><small>{groupMatches.filter((match) => { const score = scoreFor(data, match.id); return score[0] === 31 || score[1] === 31; }).length} / {groupMatches.length} complete</small></header>
           <div className="round-robin-match-list">{groupMatches.map((match) => { const score = scoreFor(data, match.id); return (
             <article key={match.id} className={score[0] === 31 || score[1] === 31 ? "complete" : ""}>
               <span>M{match.position}</span><div><b>{displayTeamName(match.pair[0])}</b><small>vs</small><b>{displayTeamName(match.pair[1])}</b></div>
@@ -1180,6 +1214,7 @@ function EntryManager({
                 ...data,
                 format: "round_robin",
                 groupSize: data.groupSize ?? 4,
+                groupSizes: undefined,
                 advancement: data.advancement ?? {
                   mode: "top_per_group",
                   count: 2,
@@ -1207,6 +1242,7 @@ function EntryManager({
                   onChange({
                     ...data,
                     groupSize: Math.max(2, Math.min(32, Number(event.target.value) || 2)),
+                    groupSizes: undefined,
                     scores: {},
                   })
                 }

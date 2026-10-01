@@ -16,6 +16,7 @@ function validBracket(
   positionsLocked?: boolean;
   format?: "single_elimination" | "round_robin";
   groupSize?: number;
+  groupSizes?: number[];
   advancement?: {
     mode: "top_per_group" | "best_overall";
     count: number;
@@ -43,6 +44,15 @@ function validBracket(
     (!Number.isInteger(bracket.groupSize) ||
       Number(bracket.groupSize) < 2 ||
       Number(bracket.groupSize) > 32)
+  )
+    return false;
+  if (
+    "groupSizes" in bracket &&
+    (!Array.isArray(bracket.groupSizes) ||
+      bracket.groupSizes.length > 32 ||
+      bracket.groupSizes.some(
+        (size) => !Number.isInteger(size) || Number(size) < 2 || Number(size) > 32,
+      ))
   )
     return false;
   if ("advancement" in bracket) {

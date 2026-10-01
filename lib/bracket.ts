@@ -11,6 +11,7 @@ export type BracketData = {
   /** Missing on legacy records and intentionally defaults to elimination. */
   format?: TournamentFormat;
   groupSize?: number;
+  groupSizes?: number[];
   advancement?: AdvancementRule;
   positionsLocked?: boolean;
   roundOrders?: Record<string, string[]>;
@@ -41,6 +42,20 @@ export function tournamentFormat(data: BracketData): TournamentFormat {
 export function roundRobinGroups(data: BracketData): string[][] {
   const teams = data.teams.filter(isRealTeam);
   if (!teams.length) return [];
+  const customSizes = data.groupSizes;
+  if (
+    customSizes?.length &&
+    customSizes.every((size) => Number.isInteger(size) && size >= 2 && size <= 32) &&
+    customSizes.reduce((total, size) => total + size, 0) === teams.length
+  ) {
+    const groups: string[][] = [];
+    let offset = 0;
+    customSizes.forEach((size) => {
+      groups.push(teams.slice(offset, offset + size));
+      offset += size;
+    });
+    return groups;
+  }
   const size = Math.max(2, Math.min(32, data.groupSize ?? 4));
   const groupCount = Math.ceil(teams.length / size);
   const groups = Array.from({ length: groupCount }, () => [] as string[]);
