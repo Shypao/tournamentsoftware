@@ -90,7 +90,10 @@ test("single elimination waits until all four round-robin brackets finish", () =
   const matches = roundRobinMatches(data);
   assert.equal(roundRobinGroups(data).length, 4);
   assert.equal(roundRobinComplete(data), false);
-  assert.equal(roundRobinEliminationData(data), null);
+  const pendingElimination = roundRobinEliminationData(data);
+  assert.ok(pendingElimination);
+  assert.equal(pendingElimination.teams.length, 8);
+  assert.ok(pendingElimination.teams.every((team) => team.startsWith("Winner ")));
 
   matches.slice(0, -1).forEach((match) => {
     data.scores[match.id] = [31, 20];

@@ -192,8 +192,25 @@ export function roundRobinQualifiers(data: BracketData): string[] {
 }
 
 export function roundRobinEliminationData(data: BracketData): BracketData | null {
-  const teams = roundRobinQualifiers(data);
-  if (teams.length < 2) return null;
+  const complete = roundRobinComplete(data);
+  const qualified = roundRobinQualifiers(data);
+  const groups = roundRobinGroups(data);
+  const count = Math.max(1, data.advancement?.count ?? 2);
+  const slotCount =
+    data.advancement?.mode === "best_overall"
+      ? Math.min(count, data.teams.filter(isRealTeam).length)
+      : Math.min(groups.length * count, data.teams.filter(isRealTeam).length);
+  if (slotCount < 1) return null;
+  const teams = complete
+    ? qualified
+    : Array.from({ length: slotCount }, (_, index) =>
+        data.advancement?.mode === "best_overall"
+          ? "Winner Overall " + (index + 1)
+          : "Winner Bracket " +
+            String.fromCharCode(65 + Math.floor(index / count)) +
+            " " +
+            ((index % count) + 1),
+      );
   return {
     ...data,
     teams,
@@ -224,16 +241,24 @@ export function nextDrawSize(quantity: number) {
 /** Pair every team in the opening round. A single bye is added only when the
  * number of teams is odd, so a 10-team draw begins with exactly 5 matches. */
 export function balancedFirstRound(inputTeams: string[]) {
-  const realTeams = inputTeams.filter(isRealTeam);
-  const expectedSize = realTeams.length + (realTeams.length % 2);
-  const padded = inputTeams.map((team) => (isRealTeam(team) ? team : "BYE"));
+  const bracketSlots = inputTeams.filter(
+    (team) => isRealTeam(team) || isWaitingTeam(team),
+  );
+  const expectedSize = bracketSlots.length + (bracketSlots.length % 2);
+  const padded = inputTeams.map((team) =>
+    isRealTeam(team) || isWaitingTeam(team) ? team : "BYE",
+  );
   const alreadyBalanced =
     inputTeams.length === expectedSize &&
     Array.from({ length: expectedSize / 2 }, (_, index) =>
       padded.slice(index * 2, index * 2 + 2),
-    ).every((pair) => pair.some(isRealTeam));
+    ).every((pair) =>
+      pair.some((team) => isRealTeam(team) || isWaitingTeam(team)),
+    );
   if (alreadyBalanced) return padded;
-  return realTeams.length % 2 === 0 ? realTeams : [...realTeams, "BYE"];
+  return bracketSlots.length % 2 === 0
+    ? bracketSlots
+    : [...bracketSlots, "BYE"];
 }
 
 function legacyScoreId(data: BracketData, id: string) {

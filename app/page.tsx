@@ -492,7 +492,7 @@ function Bracket({
   const bracket = data ?? initialBracket(level);
   if (tournamentFormat(bracket) === "round_robin") {
     const elimination = roundRobinEliminationData(bracket);
-    return <><RoundRobinBoard data={bracket} readOnly />{elimination && <section className="knockout-stage"><header><span>FINAL STAGE</span><h3>Single elimination</h3><p>{elimination.teams.length} qualified teams · winners advance automatically</p></header><Bracket level={level} data={elimination} highlightTeam={highlightTeam} /></section>}</>;
+    return <><RoundRobinBoard data={bracket} readOnly />{elimination && <section className="knockout-stage"><header><span>FINAL STAGE</span><h3>Single elimination</h3><p>{roundRobinComplete(bracket) ? `${elimination.teams.length} qualified teams` : `${elimination.teams.length} qualification slots waiting for group results`} · winners advance automatically</p></header><Bracket level={level} data={elimination} highlightTeam={highlightTeam} /></section>}</>;
   }
   const rounds = buildRounds(bracket);
   const finalMatch = rounds.at(-1)?.matches[0];
@@ -502,7 +502,11 @@ function Bracket({
   const firstPlacer = finalMatch?.pair.find(
     (team) => isRealTeam(team) && team !== champion,
   );
-  if (!bracket.teams.some(isRealTeam))
+  if (
+    !bracket.teams.some(
+      (team) => isRealTeam(team) || isWaitingTeam(team),
+    )
+  )
     return (
       <div className="empty-bracket-state">
         <b>No teams entered yet</b>
@@ -512,7 +516,9 @@ function Bracket({
         </small>
       </div>
     );
-  const entered = bracket.teams.filter(isRealTeam).length;
+  const entered = bracket.teams.filter(
+    (team) => isRealTeam(team) || isWaitingTeam(team),
+  ).length;
   if (highlightTeam) {
     const columnWidth = 240;
     const columnGap = 56;
@@ -2195,9 +2201,10 @@ function AdminView({
                      <span>FINAL STAGE</span>
                      <h3>Single elimination</h3>
                    <p>
-                     {roundRobinElimination.teams.length} qualified teams from
-                       the completed round-robin brackets. Unlock placement to
-                       configure the finals cards.
+                     {roundRobinComplete(bracketData)
+                       ? `${roundRobinElimination.teams.length} qualified teams from the completed round-robin brackets.`
+                       : `${roundRobinElimination.teams.length} qualification slots are waiting for group results.`}{" "}
+                     Unlock placement to configure the finals cards.
                    </p>
                    </header>
                    <BracketEditor
