@@ -433,7 +433,7 @@ function RoundRobinBoard({
         <section className="standings-card">
           <header><div><span>LIVE TABLE</span><h3>Standings</h3></div><small>Wins · H2H · Point difference</small></header>
           <div className="standings-scroll"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>+/-</th></tr></thead><tbody>
-            {standings.map((row) => { const qualifying = data.advancement?.mode === "best_overall" ? qualifiers.includes(row.team) : row.rank <= advancementCount; return <tr className={complete && qualifying ? "qualifier" : ""} key={row.team}><td><b className={row.rank === 1 ? "leader" : ""}>{row.rank}</b></td><td>{displayTeamName(row.team)}{complete && qualifying && <small>Qualified</small>}</td><td>{row.played}</td><td className="standing-wins">{row.wins}</td><td>{row.losses}</td><td>{row.difference > 0 ? "+" : ""}{row.difference}</td></tr>; })}
+            {standings.map((row) => { const qualifying = row.rank <= advancementCount; return <tr className={complete && qualifying ? "qualifier" : ""} key={row.team}><td><b className={row.rank === 1 ? "leader" : ""}>{row.rank}</b></td><td>{displayTeamName(row.team)}{complete && qualifying && <small>Qualified</small>}</td><td>{row.played}</td><td className="standing-wins">{row.wins}</td><td>{row.losses}</td><td>{row.difference > 0 ? "+" : ""}{row.difference}</td></tr>; })}
           </tbody></table></div>
         </section>
         <section className="round-robin-match-card">
@@ -445,7 +445,7 @@ function RoundRobinBoard({
             </article>); })}</div>
         </section>
       </div>
-      <div className={`advancement-status ${complete ? "complete" : ""}`}><b>{complete ? "QUALIFIERS SET" : "GROUP STAGE IN PROGRESS"}</b><span>{advancementCount} team{advancementCount === 1 ? "" : "s"} {data.advancement?.mode === "best_overall" ? "best overall" : "from each bracket"} advance to single elimination{complete ? "." : " after every bracket is complete."}</span></div>
+      <div className={`advancement-status ${complete ? "complete" : ""}`}><b>{complete ? "QUALIFIERS SET" : "GROUP STAGE IN PROGRESS"}</b><span>{advancementCount} team{advancementCount === 1 ? "" : "s"} from each bracket advance to single elimination{complete ? "." : " after every bracket is complete."}</span></div>
     </div>
   );
 }
@@ -1243,10 +1243,10 @@ function EntryManager({
                 format: "round_robin",
                 groupSize: data.groupSize ?? 4,
                 groupSizes: undefined,
-                advancement: data.advancement ?? {
+                advancement: {
                   mode: "top_per_group",
-                  count: 2,
-                  allowByes: true,
+                  count: data.advancement?.count ?? 2,
+                  allowByes: data.advancement?.allowByes ?? true,
                 },
                 scores: {},
               });
@@ -1277,7 +1277,7 @@ function EntryManager({
               />
             </label>
             <label>
-              <span>{data.advancement?.mode === "best_overall" ? "Teams advancing overall" : "Teams advancing per bracket"}</span>
+              <span>Teams advancing per bracket</span>
               <input
                 type="number"
                 min="1"
@@ -1287,7 +1287,7 @@ function EntryManager({
                   onChange({
                     ...data,
                     advancement: {
-                      mode: data.advancement?.mode ?? "top_per_group",
+                      mode: "top_per_group",
                       count: Math.max(1, Math.min(256, Number(event.target.value) || 1)),
                       allowByes: data.advancement?.allowByes ?? true,
                     },
@@ -1304,7 +1304,7 @@ function EntryManager({
                   onChange({
                     ...data,
                     advancement: {
-                      mode: event.target.value as "top_per_group" | "best_overall",
+                      mode: "top_per_group",
                       count: Math.max(1, data.advancement?.count ?? 2),
                       allowByes: data.advancement?.allowByes ?? true,
                     },
@@ -1313,7 +1313,6 @@ function EntryManager({
                 }
               >
                 <option value="top_per_group">Top teams from each bracket</option>
-                <option value="best_overall"> Pointing System </option>
               </select>
             </label>
             <span className="format-calculation">

@@ -175,12 +175,7 @@ export function roundRobinQualifiers(data: BracketData): string[] {
       standings[standings.length - 1 - groupIndex][1].team,
     ]);
   }
-  const selected = data.advancement?.mode === "best_overall"
-    ? standings
-        .flat()
-        .sort(compareStanding)
-        .slice(0, Math.min(count, data.teams.filter(isRealTeam).length))
-    : standings.flatMap((group) => group.slice(0, count));
+  const selected = standings.flatMap((group) => group.slice(0, count));
 
   const ranked = [...selected].sort(compareStanding).map((row) => row.team);
   const seeded: string[] = [];
@@ -197,19 +192,15 @@ export function roundRobinEliminationData(data: BracketData): BracketData | null
   const groups = roundRobinGroups(data);
   const count = Math.max(1, data.advancement?.count ?? 2);
   const slotCount =
-    data.advancement?.mode === "best_overall"
-      ? Math.min(count, data.teams.filter(isRealTeam).length)
-      : Math.min(groups.length * count, data.teams.filter(isRealTeam).length);
+    Math.min(groups.length * count, data.teams.filter(isRealTeam).length);
   if (slotCount < 1) return null;
   const teams = complete
     ? qualified
     : Array.from({ length: slotCount }, (_, index) =>
-        data.advancement?.mode === "best_overall"
-          ? "Winner Overall " + (index + 1)
-          : "Winner Bracket " +
-            String.fromCharCode(65 + Math.floor(index / count)) +
-            " " +
-            ((index % count) + 1),
+        "Winner Bracket " +
+        String.fromCharCode(65 + Math.floor(index / count)) +
+        " " +
+        ((index % count) + 1),
       );
   return {
     ...data,
