@@ -3014,33 +3014,12 @@ function PlayerView({
     for (const [key, bracket] of Object.entries(publishedBrackets)) {
       const level = key.slice(-1) as Level;
       const division = key.slice(0, -2) as Division;
-      const realTeams = bracket.teams.filter(isRealTeam);
-      const playerIsInBracket = realTeams.some((team) =>
-        splitTeam(team).some(
-          (name) => name.trim().toLowerCase() === target,
-        ),
-      );
-      const teamsForPlayerPage =
-        tournamentFormat(bracket) === "round_robin" && playerIsInBracket
-          ? realTeams
-          : bracket.teams.filter((team) =>
-              splitTeam(team).some(
-                (name) => name.trim().toLowerCase() === target,
-              ),
-            );
-      teamsForPlayerPage.forEach((team) => {
-        const teamIndex = bracket.teams.indexOf(team);
+      bracket.teams.forEach((team, teamIndex) => {
         const teamNames = splitTeam(team);
-        const sides =
-          tournamentFormat(bracket) === "round_robin" && playerIsInBracket
-            ? [0]
-            : [
-                teamNames.findIndex(
-                  (name) => name.trim().toLowerCase() === target,
-                ),
-              ];
-        sides.forEach((side) => {
-          if (side < 0 || !teamNames[side]) return;
+        const side = teamNames.findIndex(
+          (name) => name.trim().toLowerCase() === target,
+        );
+        if (side >= 0) {
           const pair = teamNames;
           const opponentIndex =
             teamIndex % 2 === 0 ? teamIndex + 1 : teamIndex - 1;
@@ -3063,10 +3042,10 @@ function PlayerView({
             time: scheduled?.time ?? "Check schedule",
           };
           matches.set(
-            `${division}|${level}|${match.name}|${match.partner}`,
+            `bracket|${key}|${teamIndex}|${side}`,
             match,
           );
-        });
+        }
       });
     }
     const nextEntries = Array.from(matches.values()).sort((left, right) =>
