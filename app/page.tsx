@@ -3014,13 +3014,34 @@ function PlayerView({
     for (const [key, bracket] of Object.entries(publishedBrackets)) {
       const level = key.slice(-1) as Level;
       const division = key.slice(0, -2) as Division;
-      bracket.teams.forEach((team, teamIndex) => {
-        const teamNames = splitTeam(team);
-        const side = teamNames.findIndex(
+      const realTeams = bracket.teams.filter(isRealTeam);
+      const playerIsInBracket = realTeams.some((team) =>
+        splitTeam(team).some(
           (name) => name.trim().toLowerCase() === target,
-        );
-        if (side >= 0) {
-          const pair = splitTeam(bracket.teams[teamIndex]);
+        ),
+      );
+      const teamsForPlayerPage =
+        tournamentFormat(bracket) === "round_robin" && playerIsInBracket
+          ? realTeams
+          : bracket.teams.filter((team) =>
+              splitTeam(team).some(
+                (name) => name.trim().toLowerCase() === target,
+              ),
+            );
+      teamsForPlayerPage.forEach((team) => {
+        const teamIndex = bracket.teams.indexOf(team);
+        const teamNames = splitTeam(team);
+        const sides =
+          tournamentFormat(bracket) === "round_robin" && playerIsInBracket
+            ? [0]
+            : [
+                teamNames.findIndex(
+                  (name) => name.trim().toLowerCase() === target,
+                ),
+              ];
+        sides.forEach((side) => {
+          if (side < 0 || !teamNames[side]) return;
+          const pair = teamNames;
           const opponentIndex =
             teamIndex % 2 === 0 ? teamIndex + 1 : teamIndex - 1;
           const scheduled = publishedOperations.schedule.find(
@@ -3045,7 +3066,7 @@ function PlayerView({
             `${division}|${level}|${match.name}|${match.partner}`,
             match,
           );
-        }
+        });
       });
     }
     const nextEntries = Array.from(matches.values()).sort((left, right) =>
