@@ -30,6 +30,8 @@ test("20 teams in groups of four produce five groups and 30 unique matches", () 
   const groups = roundRobinGroups(data);
   const matches = roundRobinMatches(data);
   assert.deepEqual(groups.map((group) => group.length), [4, 4, 4, 4, 4]);
+  assert.deepEqual(groups[0], teams.slice(0, 4));
+  assert.deepEqual(groups[1], teams.slice(4, 8));
   assert.equal(matches.length, 30);
   const pairs = matches.map((match) => [...match.pair].sort().join("|"));
   assert.equal(new Set(pairs).size, matches.length);

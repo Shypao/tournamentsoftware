@@ -60,9 +60,7 @@ export function roundRobinGroups(data: BracketData): string[][] {
   const groupCount = Math.ceil(teams.length / size);
   const groups = Array.from({ length: groupCount }, () => [] as string[]);
   teams.forEach((team, index) => {
-    const cycle = Math.floor(index / groupCount);
-    const offset = index % groupCount;
-    groups[cycle % 2 === 0 ? offset : groupCount - 1 - offset].push(team);
+    groups[Math.floor(index / size)].push(team);
   });
   return groups;
 }
