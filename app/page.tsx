@@ -2994,17 +2994,25 @@ function PlayerView({
   useEffect(() => {
     setPublishedOperations(operations);
   }, [operations]);
-  useEffect(() => {
-    const refreshPublicData = () =>
-      Promise.all([
-        fetch("/api/tournament").then((response) =>
-          response.ok ? response.json() : null,
-        ),
-        fetch("/api/operations").then((response) =>
-          response.ok ? response.json() : null,
-        ),
-      ])
-        .then(([tournamentResult, operationsResult]) => {
+    useEffect(() => {
+      let active = true;
+      let refreshing = false;
+
+      const refreshPublicData = async () => {
+        if (!active || document.hidden || refreshing) return;
+
+        refreshing = true;
+        try {
+          const [tournamentResponse, operationsResponse] = await Promise.all([
+            fetch("/api/tournament"),
+            fetch("/api/operations"),
+          ]);
+          const [tournamentResult, operationsResult] = await Promise.all([
+            tournamentResponse.ok ? tournamentResponse.json() : null,
+            operationsResponse.ok ? operationsResponse.json() : null,
+          ]);
+
+          if (!active) return;
           if (tournamentResult?.brackets)
             setPublishedBrackets((current) => ({
               ...current,
@@ -3012,12 +3020,26 @@ function PlayerView({
             }));
           if (operationsResult?.operations)
             setPublishedOperations(operationsResult.operations);
-        })
-        .catch(() => undefined);
-    refreshPublicData();
-    const timer = window.setInterval(refreshPublicData, 4000);
-    return () => window.clearInterval(timer);
-  }, []);
+        } catch {
+          // Keep the last good public data if a refresh is temporarily unavailable.
+        } finally {
+          refreshing = false;
+        }
+      };
+
+      const handleVisibilityChange = () => {
+        if (!document.hidden) refreshPublicData();
+      };
+
+      refreshPublicData();
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      const timer = window.setInterval(refreshPublicData, 30 * 60 * 1000);
+      return () => {
+        active = false;
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.clearInterval(timer);
+      };
+    }, []);
   const directoryNames = useMemo(() => {
     const names = new Set<string>();
     publishedOperations.players.forEach((item) => {
