@@ -2589,6 +2589,11 @@ function SearchLanding({
   const filteredDirectoryNames = directoryNames.filter((name) =>
     name.toLowerCase().includes(directoryQuery.trim().toLowerCase()),
   );
+  const matchingNames = query.trim()
+    ? directoryNames
+        .filter((name) => name.toLowerCase().includes(query.trim().toLowerCase()))
+        .slice(0, 8)
+    : [];
   return (
     <main className="public-page">
       <section className="search-hero" id="find-player">
@@ -2619,6 +2624,15 @@ function SearchLanding({
           />
           <button type="submit">Find my match</button>
         </form>
+        {matchingNames.length > 0 && (
+          <div className="player-search-suggestions" role="listbox" aria-label="Matching player names">
+            {matchingNames.map((name) => (
+              <button key={name} type="button" role="option" onClick={() => onSelectName(name)}>
+                {name}
+              </button>
+            ))}
+          </div>
+        )}
         {noResult && (
           <p className="search-error">
             We couldn't find that name. Check the spelling or ask the tournament
@@ -2866,19 +2880,10 @@ function PlayerResult({
               </span>
             </div>
           ) : (
-            <div className="court-call">
-              <span>
-                <small>
-                  {(player.round ?? "NEXT MATCH").toUpperCase()} · {player.division.toUpperCase()} {player.level}
-                </small>
-                <strong>{player.court}</strong>
-                <em>Be ready by {player.time}</em>
-              </span>
-              <b>VS</b>
+            <div className="court-call opponent-only-call">
               <span className="opponent">
                 <small>OPPONENTS</small>
                 <strong>{displayTeamName(player.opponent)}</strong>
-                <em>Match starts at {player.time}</em>
               </span>
             </div>
           )}
