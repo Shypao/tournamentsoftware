@@ -340,14 +340,26 @@ function RoundRobinBoard({
   data,
   onChange,
   readOnly = false,
+  highlightTeam,
 }: {
   data: BracketData;
   onChange?: (data: BracketData) => void;
   readOnly?: boolean;
+  highlightTeam?: string;
 }) {
   const groups = roundRobinGroups(data);
   const matches = roundRobinMatches(data);
-  const [active, setActive] = useState(0);
+  const teamKey = (team: string) =>
+    splitTeam(team).map((name) => name.trim().toLowerCase()).sort().join("|");
+  const highlightedGroup = highlightTeam
+    ? groups.findIndex((group) =>
+        group.some((team) => teamKey(team) === teamKey(highlightTeam)),
+      )
+    : -1;
+  const [active, setActive] = useState(highlightedGroup >= 0 ? highlightedGroup : 0);
+  useEffect(() => {
+    if (highlightedGroup >= 0) setActive(highlightedGroup);
+  }, [highlightedGroup]);
   const groupIndex = Math.min(active, Math.max(0, groups.length - 1));
   const groupMatches = matches.filter((match) => match.groupIndex === groupIndex);
   const standings = roundRobinStandings(data, groupIndex);
@@ -498,7 +510,7 @@ function Bracket({
   const thirdPlace = thirdPlacePair(bracket);
   if (tournamentFormat(bracket) === "round_robin") {
     const elimination = roundRobinEliminationData(bracket);
-    return <><RoundRobinBoard data={bracket} readOnly />{elimination && <section className="knockout-stage"><header><span>FINAL STAGE</span><h3>Single elimination</h3><p>{roundRobinComplete(bracket) ? `${elimination.teams.length} qualified teams` : `${elimination.teams.length} qualification slots waiting for group results`} · winners advance automatically</p></header><Bracket level={level} data={elimination} highlightTeam={highlightTeam} /></section>}</>;
+    return <><RoundRobinBoard data={bracket} readOnly highlightTeam={highlightTeam} />{elimination && <section className="knockout-stage"><header><span>FINAL STAGE</span><h3>Single elimination</h3><p>{roundRobinComplete(bracket) ? `${elimination.teams.length} qualified teams` : `${elimination.teams.length} qualification slots waiting for group results`} · winners advance automatically</p></header><Bracket level={level} data={elimination} highlightTeam={highlightTeam} /></section>}</>;
   }
   const rounds = buildRounds(bracket);
   const finalMatch = rounds.at(-1)?.matches[0];
