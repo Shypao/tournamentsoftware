@@ -8,6 +8,7 @@ export type AdvancementRule = {
 export type BracketData = {
   teams: string[];
   scores: Record<string, MatchScore>;
+  thirdPlaceScore?: MatchScore;
   /** Missing on legacy records and intentionally defaults to elimination. */
   format?: TournamentFormat;
   groupSize?: number;
@@ -257,8 +258,26 @@ function legacyScoreId(data: BracketData, id: string) {
 }
 
 export function scoreFor(data: BracketData, id: string): MatchScore {
+  if (id === "third-place") return data.thirdPlaceScore ?? [0, 0];
   const legacy = legacyScoreId(data, id);
   return data.scores[id] ?? (legacy ? data.scores[legacy] : undefined) ?? [0, 0];
+}
+
+export function thirdPlacePair(data: BracketData): [string, string] | null {
+  const rounds = buildRounds(data);
+  const semifinals = rounds.at(-2);
+  if (!semifinals || semifinals.matches.length !== 2) return null;
+  return semifinals.matches.map((match, index) => {
+    const winner = matchWinner(data, match.id, match.pair);
+    return winner
+      ? match.pair.find((team) => isRealTeam(team) && team !== winner) ?? `Loser Semifinal ${index + 1}`
+      : `Loser Semifinal ${index + 1}`;
+  }) as [string, string];
+}
+
+export function thirdPlaceWinner(data: BracketData): string | null {
+  const pair = thirdPlacePair(data);
+  return pair ? matchWinner(data, "third-place", pair) : null;
 }
 
 export function matchWinner(data: BracketData, id: string, pair: [string, string]) {

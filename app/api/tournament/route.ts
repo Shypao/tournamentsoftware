@@ -13,6 +13,7 @@ function validBracket(
 ): value is {
   teams: string[];
   scores: Record<string, [number, number]>;
+  thirdPlaceScore?: [number, number];
   positionsLocked?: boolean;
   format?: "single_elimination" | "round_robin";
   groupSize?: number;
@@ -71,6 +72,15 @@ function validBracket(
       return false;
   }
   if (!bracket.scores || typeof bracket.scores !== "object") return false;
+  if (
+    "thirdPlaceScore" in bracket &&
+    (!Array.isArray(bracket.thirdPlaceScore) ||
+      bracket.thirdPlaceScore.length !== 2 ||
+      bracket.thirdPlaceScore.some(
+        (point) => !Number.isInteger(point) || point < 0 || point > 31,
+      ))
+  )
+    return false;
   if (
     "positionsLocked" in bracket &&
     typeof bracket.positionsLocked !== "boolean"

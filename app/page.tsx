@@ -28,6 +28,8 @@ import {
   roundRobinStandings,
   scoreFor,
   splitTeam,
+  thirdPlacePair,
+  thirdPlaceWinner,
   tournamentFormat,
   type BracketData,
   type MatchScore,
@@ -493,6 +495,7 @@ function Bracket({
   highlightTeam?: string;
 }) {
   const bracket = data ?? initialBracket(level);
+  const thirdPlace = thirdPlacePair(bracket);
   if (tournamentFormat(bracket) === "round_robin") {
     const elimination = roundRobinEliminationData(bracket);
     return <><RoundRobinBoard data={bracket} readOnly />{elimination && <section className="knockout-stage"><header><span>FINAL STAGE</span><h3>Single elimination</h3><p>{roundRobinComplete(bracket) ? `${elimination.teams.length} qualified teams` : `${elimination.teams.length} qualification slots waiting for group results`} · winners advance automatically</p></header><Bracket level={level} data={elimination} highlightTeam={highlightTeam} /></section>}</>;
@@ -622,6 +625,19 @@ function Bracket({
                 </div>
               </section>
             ))}
+            {thirdPlace && (
+              <div className="player-third-place-card">
+                <span>3RD PLACE PLAYOFF</span>
+                <b>{displayTeamName(thirdPlace[0])}</b>
+                <i>VS</i>
+                <b>{displayTeamName(thirdPlace[1])}</b>
+                <strong>
+                  {thirdPlaceWinner(bracket)
+                    ? `3rd placer: ${displayTeamName(thirdPlaceWinner(bracket)!)}`
+                    : "Winner becomes 3rd placer"}
+                </strong>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -724,6 +740,10 @@ function ScoreMatch({
     score[side] = next;
     if (next === 31)
       score[side === 0 ? 1 : 0] = Math.min(score[side === 0 ? 1 : 0], 30);
+    if (id === "third-place") {
+      onChange({ ...data, thirdPlaceScore: score });
+      return;
+    }
     const nextScores = { ...data.scores, [id]: score };
     resetAfter(nextScores);
     onChange({ ...data, scores: nextScores });
@@ -856,6 +876,7 @@ function BracketEditor({
     slot: number;
   } | null>(null);
   const rounds = buildRounds(data);
+  const thirdPlace = thirdPlacePair(data);
   const finalMatch = rounds.at(-1)?.matches[0];
   const champion = finalMatch
     ? matchWinner(data, finalMatch.id, finalMatch.pair)
@@ -1086,6 +1107,19 @@ function BracketEditor({
               )})}
             </div>
           </div>
+          {thirdPlace && (
+            <section className="third-place-editor">
+              <h4>3RD PLACE PLAYOFF</h4>
+              <ScoreMatch
+                id="third-place"
+                pair={thirdPlace}
+                data={data}
+                onChange={onChange}
+                roundIndex={Math.max(0, rounds.length - 1)}
+                positionsLocked={data.positionsLocked}
+              />
+            </section>
+          )}
         </>
       )}
     </div>
