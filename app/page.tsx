@@ -444,7 +444,7 @@ function RoundRobinBoard({
           <div className="round-robin-match-list">{groupMatches.map((match) => { const score = scoreFor(data, match.id); return (
             <article key={match.id} className={score[0] === 31 || score[1] === 31 ? "complete" : ""}>
               <span>M{match.position}</span><div><b>{displayTeamName(match.pair[0])}</b><small>vs</small><b>{displayTeamName(match.pair[1])}</b></div>
-              {readOnly ? <strong>{score[0]}–{score[1]}</strong> : <fieldset aria-label={`Score for match ${match.position}`}><input aria-label={`${match.pair[0]} score`} type="number" min="0" max="31" value={score[0]} onChange={(event) => setMatchScore(match.id, 0, Number(event.target.value))}/><i>–</i><input aria-label={`${match.pair[1]} score`} type="number" min="0" max="31" value={score[1]} onChange={(event) => setMatchScore(match.id, 1, Number(event.target.value))}/></fieldset>}
+              {readOnly ? <strong>{score[0]}–{score[1]}</strong> : <fieldset aria-label={`Score for match ${match.position}`}><input aria-label={`${match.pair[0]} score`} type="number" min="0" max="31" value={score[0]} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setMatchScore(match.id, 0, Number(event.target.value))}/><i>–</i><input aria-label={`${match.pair[1]} score`} type="number" min="0" max="31" value={score[1]} onFocus={(event) => event.currentTarget.select()} onChange={(event) => setMatchScore(match.id, 1, Number(event.target.value))}/></fieldset>}
             </article>); })}</div>
         </section>
       </div>
