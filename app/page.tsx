@@ -94,6 +94,9 @@ const displayTeamName = (team: string) =>
 const initialBracket = (_level: Level): BracketData => ({
   teams: [],
   scores: {},
+  format: "round_robin",
+  groupSize: 4,
+  advancement: { mode: "top_per_group", count: 2, allowByes: true },
 });
 
 function Brand() {
@@ -1220,20 +1223,9 @@ function EntryManager({
             <b>TOURNAMENT FORMAT</b>
             <span>Choose how {division} · Level {level} will be played.</span>
           </div>
-          <strong>{format === "round_robin" ? "ROUND ROBIN" : "SINGLE ELIMINATION"}</strong>
+          <strong>ROUND ROBIN</strong>
         </div>
         <div className="format-options">
-          <button
-            type="button"
-            className={format === "single_elimination" ? "selected" : ""}
-            onClick={() => {
-              onChange({ ...data, format: "single_elimination", scores: emptyScores(data.teams.length) });
-              setNotice("Single elimination selected · match scores reset");
-            }}
-          >
-            <i aria-hidden="true" />
-            <span><b>Single Elimination</b><small>One loss eliminates a team. Winners advance automatically.</small></span>
-          </button>
           <button
             type="button"
             className={format === "round_robin" ? "selected" : ""}
