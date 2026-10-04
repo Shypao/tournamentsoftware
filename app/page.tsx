@@ -952,8 +952,8 @@ function BracketEditor({
           <b>Official live bracket</b>
           <span>
             {entered} doubles teams · {entered * 2} players · bracket expands
-            automatically · unlock placement to drag match cards and move names
-            between quarterfinal or semifinal slots.
+            automatically · {data.positionsLocked ? "unlock placement" : "drag match cards"}
+            to arrange quarterfinal or semifinal slots.
           </span>
         </div>
         <span className="save-status">{saving}</span>
@@ -969,7 +969,7 @@ function BracketEditor({
             });
           }}
         >
-          {data.positionsLocked ? "Positions locked" : "Lock match cards"}
+          {data.positionsLocked ? "Unlock placement" : "Lock placement"}
         </button>}
         <button onClick={onSave}>Save & publish changes</button>
       </div>
@@ -2244,7 +2244,9 @@ function AdminView({
                      {roundRobinComplete(bracketData)
                        ? `${roundRobinElimination.teams.length} qualified teams from the completed round-robin brackets.`
                        : `${roundRobinElimination.teams.length} qualification slots are waiting for group results.`}{" "}
-                     Unlock placement to configure the finals cards.
+                     {roundRobinElimination.positionsLocked
+                       ? "Unlock placement to configure the finals cards."
+                       : "Drag the finals cards to configure placement."}
                    </p>
                    </header>
                    <BracketEditor
@@ -2255,6 +2257,7 @@ function AdminView({
                          {
                            ...bracketData,
                            scores: eliminationData.scores,
+                           thirdPlaceScore: eliminationData.thirdPlaceScore,
                            positionsLocked: eliminationData.positionsLocked,
                            roundOrders: eliminationData.roundOrders,
                            roundSlotOrders: eliminationData.roundSlotOrders,
