@@ -2849,6 +2849,7 @@ function PlayerResult({
   selectedEntry,
   onEntryChange,
   onReset,
+  onRefresh,
   bracketData,
 }: {
   player: PlayerRecord;
@@ -2856,6 +2857,7 @@ function PlayerResult({
   selectedEntry: number;
   onEntryChange: (index: number) => void;
   onReset: () => void;
+  onRefresh: () => void;
   bracketData: BracketData;
 }) {
   const entryLabel = (index: number) => {
@@ -2978,7 +2980,10 @@ function PlayerResult({
               {player.division} · Level {player.level}
             </p>
           </div>
-          <span className="updated">Updated just now</span>
+          <div className="player-live-actions">
+            <button type="button" onClick={onRefresh}>Refresh scores</button>
+            <span className="updated">Live tournament data</span>
+          </div>
         </div>
         <div className="bracket-meta">
           <span>
@@ -3012,6 +3017,7 @@ function PlayerView({
   const [playerEntries, setPlayerEntries] = useState<PlayerRecord[]>([]);
   const [selectedEntry, setSelectedEntry] = useState(0);
   const [searched, setSearched] = useState(false);
+  const [refreshRequest, setRefreshRequest] = useState(0);
   const [publishedBrackets, setPublishedBrackets] = useState(brackets);
   const [publishedOperations, setPublishedOperations] = useState(operations);
   useEffect(() => {
@@ -3062,7 +3068,7 @@ function PlayerView({
         document.removeEventListener("visibilitychange", handleVisibilityChange);
         window.clearInterval(timer);
       };
-    }, []);
+    }, [refreshRequest]);
   const directoryNames = useMemo(() => {
     const names = new Set<string>();
     publishedOperations.players.forEach((item) => {
@@ -3186,6 +3192,7 @@ function PlayerView({
           selectedEntry={selectedEntry}
           onEntryChange={setSelectedEntry}
           bracketData={playerBracket}
+          onRefresh={() => setRefreshRequest((value) => value + 1)}
           onReset={() => {
             setPlayerEntries([]);
             setSelectedEntry(0);
