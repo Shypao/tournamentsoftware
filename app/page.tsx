@@ -787,7 +787,13 @@ function ScoreMatch({
       {movableMatchIndex !== undefined && (
         <div className="match-drag-bar" title="Drag to move this matchup">
           <b>{positionsLocked ? "Placement locked" : "Drag matchup card"}</b>
-          <small>{positionsLocked ? "Scores stay editable" : "Team names locked"}</small>
+          <small>
+            {positionsLocked
+              ? "Scores stay editable"
+              : participantDragEnabled
+                ? "Names movable"
+                : "Team names locked"}
+          </small>
         </div>
       )}
       {pair.map((team, side) => {
@@ -1049,8 +1055,7 @@ function BracketEditor({
               {rounds.map((round, roundIndex) => {
                 const participantNamesMovable =
                   placementEditable &&
-                  (round.label === "QUARTERFINALS" ||
-                    round.label === "SEMIFINALS");
+                  round.label !== "FINAL";
                 return (
                 <div
                   id={`admin-round-${roundIndex}`}
