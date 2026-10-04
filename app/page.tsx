@@ -749,6 +749,13 @@ function ScoreMatch({
       if (match && Number(match[1]) > roundIndex) nextScores[key] = [0, 0];
     });
   };
+  const keepThroughCurrentRound = <T,>(orders: Record<string, T[]> | undefined) =>
+    Object.fromEntries(
+      Object.entries(orders ?? {}).filter(([key]) => {
+        const match = /^r(\d+)$/.exec(key);
+        return match && Number(match[1]) <= roundIndex;
+      }),
+    ) as Record<string, T[]>;
   const setScore = (side: 0 | 1, value: number) => {
     const next = Math.max(0, Math.min(31, Number.isFinite(value) ? value : 0));
     const score: MatchScore = [...points] as MatchScore;
@@ -761,7 +768,12 @@ function ScoreMatch({
     }
     const nextScores = { ...data.scores, [id]: score };
     resetAfter(nextScores);
-    onChange({ ...data, scores: nextScores });
+    onChange({
+      ...data,
+      scores: nextScores,
+      roundOrders: keepThroughCurrentRound(data.roundOrders),
+      roundSlotOrders: keepThroughCurrentRound(data.roundSlotOrders),
+    });
   };
   return (
     <div
