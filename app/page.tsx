@@ -737,7 +737,10 @@ function ScoreMatch({
 }) {
   const points = scoreFor(data, id);
   const winner = matchWinner(data, id, pair);
-  const playable = isRealTeam(pair[0]) && isRealTeam(pair[1]);
+  const playable =
+    id === "third-place"
+      ? pair.every((team) => Boolean(team) && !isOpenTeam(team))
+      : isRealTeam(pair[0]) && isRealTeam(pair[1]);
   const bye = winner && !playable;
   const cardDraggable = movableMatchIndex !== undefined && !positionsLocked;
   const resetAfter = (nextScores: Record<string, MatchScore>) => {
