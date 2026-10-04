@@ -128,10 +128,13 @@ export function roundRobinStandings(
   };
   return result.sort((one, two) => {
     if (two.wins !== one.wins) return two.wins - one.wins;
+    // Point difference is the official advancement tiebreaker after wins.
+    // Head-to-head is only used when both teams have the same record and
+    // point difference.
+    if (two.difference !== one.difference) return two.difference - one.difference;
     const headToHead = directWinner(one.team, two.team);
     if (headToHead === one.team) return -1;
     if (headToHead === two.team) return 1;
-    if (two.difference !== one.difference) return two.difference - one.difference;
     return one.team.localeCompare(two.team);
   }).map((row, index) => ({ ...row, rank: index + 1 }));
 }

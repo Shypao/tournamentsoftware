@@ -448,7 +448,7 @@ function RoundRobinBoard({
       </div>
       <div className="round-robin-grid">
         <section className="standings-card">
-          <header><div><span>LIVE TABLE</span><h3>Standings</h3></div><small>Wins · H2H · Point difference</small></header>
+          <header><div><span>LIVE TABLE</span><h3>Standings</h3></div><small>Wins · Point difference · H2H</small></header>
           <div className="standings-scroll"><table><thead><tr><th>#</th><th>Team</th><th>P</th><th>W</th><th>L</th><th>+/-</th></tr></thead><tbody>
             {standings.map((row) => { const qualifying = row.rank <= advancementCount; return <tr className={complete && qualifying ? "qualifier" : ""} key={row.team}><td><b className={row.rank === 1 ? "leader" : ""}>{row.rank}</b></td><td>{displayTeamName(row.team)}{complete && qualifying && <small>Qualified</small>}</td><td>{row.played}</td><td className="standing-wins">{row.wins}</td><td>{row.losses}</td><td>{row.difference > 0 ? "+" : ""}{row.difference}</td></tr>; })}
           </tbody></table></div>
@@ -894,11 +894,11 @@ function BracketEditor({
     ? matchWinner(data, finalMatch.id, finalMatch.pair)
     : null;
   const entered = data.teams.filter(isRealTeam).length;
-  const adminColumnWidth = 260;
-  const adminColumnGap = 64;
+  const adminColumnWidth = 300;
+  const adminColumnGap = 96;
   const adminStackHeight = Math.max(
-    680,
-    (rounds[0]?.matches.length ?? 1) * 148,
+    760,
+    (rounds[0]?.matches.length ?? 1) * 160,
   );
   const adminBracketWidth =
     rounds.length * adminColumnWidth +
